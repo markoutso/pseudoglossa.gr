@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PForm xmlns="pseudoglossa.forms.*" xmlns:mx="http://www.adobe.com/2006/mxml" width="500" height="330" title="Αλλαγή στοιχείων χρήστη">
+<mx:Script>
+	<![CDATA[
+		import mx.rpc.events.ResultEvent;
+		import mx.validators.Validator;
+		import mx.validators.ValidationResult;
+		import mx.events.ValidationResultEvent;
+		import pseudoglossa.components.PasswordValidator;
+		import flash.events.Event;
+		import mx.utils.ObjectUtil;
+		import mx.events.CloseEvent;
+		import mx.controls.Alert;
+		import flash.events.FocusEvent;
+		
+	override protected function init():void {
+		super.init();
+		isValid = false;
+		password1V.tooShortError = 'τουλάχιστον 6 χαρακτήρες';
+		password1V.tooLongError = 'το πολύ 100 χαρακτήρες';
+		password2V.tooShortError = 'τουλάχιστον 6 χαρακτήρες';
+		password2V.tooLongError = 'το πολύ 100 χαρακτήρες';
+		password1V.requiredFieldError = 'υποχρεωτικό πεδίο';
+		password2V.requiredFieldError = 'υποχρεωτικό πεδίο';		
+		
+		password1.addEventListener('change', function(e:Event):void {
+			password2V.confirmPass = password1.text;
+			password2V.validate(null, password2.text == '');
+		});
+	}
+	override public function initServices():void {
+		service.addResultListener('changeProfile', resultHandler);
+	}
+	override public function setFocus():void {
+		password1V.enabled = false;
+		password2V.enabled = false;
+		password1.errorString = '';
+		password2.errorString = '';
+		password1.text = '';
+		password2.text = '';
+		username.setFocus();
+		msg.text = 'Εισάγετε συνθηματικό μόνο σε περίπτωση που θέλετε να αλλάξετε το υπάρχον';
+		msg.setStyle('color', 'green');		
+	}
+	private function deleteUser(e:Event):void {
+		Alert.show('Είστε σίγουρος/η ότι θέλετε να διαγράψετε το λογαριασμό σας;' + 
+				' Με αυτή την ενέργεια διαγράφετε οριστικά όσα έχουν σχέση με τον ' +
+				'συγκεκριμένο λογαριασμό (αλγόριθμοι, ετικέτες κτλ)', 
+				'Μήνυμα Συστήματος', Alert.OK | Alert.NO, null, 
+				function(e:CloseEvent):void {
+					if(e.detail == Alert.OK) {		
+						service.addResultListener('deleteUser', function(e:ResultEvent):void {
+							if(e.result == true) {
+								hide();			
+								Pseudoglossa.instance.status.text = 'Ο λογαριασμός σας διαγράφηκε';						
+							}
+						});		
+						service.call('pLogout');
+						service.call('deleteUser', username.text);
+					}
+				}
+			);		
+	}
+	private function changeProfile(e:Event):void {
+		service.call('changeProfile', username.text, firstName.text, lastName.text, password1.text, email.text);
+		submit.enabled = false;
+	}
+	private function resultHandler(e:ResultEvent):void {
+		if(e.result == true) {
+			hide();
+			Pseudoglossa.instance.status.text = 'Τα στοιχεία σας άλλαξαν';		
+			Pseudoglossa.instance.userLogged.firstName = firstName.text;
+			Pseudoglossa.instance.userLogged.lastName = lastName.text;
+			Pseudoglossa.instance.userLogged.email = email.text;
+		}
+		else {
+			submit.enabled = true;
+			msg.setStyle('color', 'red');
+			msg.text = e.result.toString();
+		}
+	}
+	private function validateForm(e:Event):void {
+		focussedFormControl = e.target as DisplayObject;                
+		isValid = true;
+		validate(emailV);
+		if(password1.text != '' || password2.text != '') {
+			password1V.enabled = true;
+			password2V.enabled = true;
+			validate(password1V);
+			validate(password2V);
+		}
+		else {
+			password1.errorString = '';
+			password2.errorString = '';
+			password1V.enabled = false;
+			password2V.enabled = false;
+		}
+	}	
+	]]>
+</mx:Script>
+	<mx:VBox horizontalAlign="center" paddingBottom="5">
+			<mx:Form defaultButton="{submit}" paddingBottom="0">
+				<mx:FormItem label="Όνομα Χρήστη : " >
+		          <mx:Label id="username" width="150" text="{Pseudoglossa.instance.userLogged.username}"/>
+		       </mx:FormItem>
+		       <mx:FormItem label="Όνομα : ">
+		          <mx:TextInput id="firstName" width="150" change="validateForm(event)" text="{Pseudoglossa.instance.userLogged.firstName}"/>
+		       </mx:FormItem>
+		       <mx:FormItem label="Επώνυμο : ">
+		          <mx:TextInput id="lastName" width="150" change="validateForm(event)" text="{Pseudoglossa.instance.userLogged.lastName}"/>
+		       </mx:FormItem>
+		         <mx:FormItem label="Συνθηματικό : " required="true">
+		            <mx:TextInput id="password1" width="150" displayAsPassword="true" change="validateForm(event)" />
+		        </mx:FormItem>
+		         <mx:FormItem label="Επανάληψη Συνθηματικού: " required="true">
+		            <mx:TextInput id="password2" width="150" displayAsPassword="true" change="validateForm(event)" />
+		        </mx:FormItem>
+		        <mx:FormItem label="Διεύθυνση email : " required="true">
+		          <mx:TextInput id="email" width="150" change="validateForm(event)" text="{Pseudoglossa.instance.userLogged.email}"/>
+		       </mx:FormItem>       
+		        <mx:FormItem>
+		            <mx:Button id="submit" enabled="{isValid}" 
+		                label="Αλλαγή στοιχείων" 
+		                click="changeProfile(event);"/>
+		        </mx:FormItem>
+		    </mx:Form> 	
+		    <mx:Text id="msg" color="green" text="Εισάγετε συνθηματικό μόνο σε περίπτωση που θέλετε να αλλάξετε το υπάρχον"/>
+		    <mx:LinkButton id="deleteB"
+                label="Διαγραφή Λογαριασμού" 
+                click="deleteUser(event);"/>		    
+	</mx:VBox>
+	
+    <custom:PEmailValidator id="emailV" source="{email}" property="text" required="true" xmlns:custom="pseudoglossa.components.*" />
+	<mx:StringValidator id="password1V" required="true" minLength="6" maxLength="30"  source="{password1}" property="text" enabled="false"/>
+	<custom:PasswordValidator xmlns:custom="pseudoglossa.components.*" id="password2V" required="true" minLength="6" maxLength="30"
+								source="{password2}" property="text" confirmPass="{password1.text}"  enabled="false"/>
+</PForm>

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml"
+        title="pseudoglossa.gr - έκδοση βήτα 3"
+        layout="vertical"
+        width="600"
+        showCloseButton="true"
+        close="titleWindow_close(event)" creationComplete="init()">
+        <mx:Script>
+        	<![CDATA[
+        	import mx.controls.Alert;
+            import mx.events.CloseEvent;
+            import mx.managers.PopUpManager;
+            private function titleWindow_close(evt:CloseEvent = null):void {
+                PopUpManager.removePopUp(this)
+            }       
+           
+        private function init():void {
+        	addEventListener(KeyboardEvent.KEY_UP, function(e:KeyboardEvent):void {
+				if(e.keyCode == Keyboard.ESCAPE) {
+					titleWindow_close();
+				}
+			});		
+        }
+        	]]>
+        </mx:Script>
+
+    <mx:TextArea id="text"
+            width="100%"
+            height="400" editable="false" styleName="code" color="#000000" paddingTop="10" fontSize="12">
+	<mx:htmlText>
+<![CDATA[<font size="13">pseudoglossa.gr - on-line διερμηνευτής για την Ψευδογλώσσα της ΑΕΠΠ</font>
+
+Ανάπτυξη : Στάθης Στέργου <br />Επικοινωνία : sstergou@gmail.com
+Εικονίδια : <font color="#0000FF"><u><a href="http://tango.freedesktop.org/" target="_blank">Tango Project</a></u></font>
+Γραμματοσειρές : <font color="#0000FF"><u><a href="http://dejavu-fonts.org/wiki/Main_Page" target="_blank">DejaVu</a></u></font>
+Undo : <font color="#0000FF"><u><a href="http://code.google.com/p/undo-textfields/" target="_blank">Undo-textfields</a></u></font>
+
+Εγγραφείτε στο σύστημα αν επιθυμείτε να ενεργοποιηθούν οι δυνατότητες της αποθήκευσης και της διαχείρισης αλγορίθμων.
+
+<font size="14"><u>Προστασία προσωπικών δεδομένων</u></font>
+Το pseudoglossa.gr δεσμεύεται ότι δεν θα χρησιμοποιήσει με κανέναν τρόπο τα προσωπικά στοιχεία που οι χρήστες εκχωρούν για διαχειριστικούς σκοπούς (email κτλ).
+
+<font size="14"><u>Περιεχόμενο που υποβάλλεται από τους χρήστες</u></font>
+Το περιεχόμενο που υποβάλλουν οι χρήστες παραμένει στην ιδιοκτησία τους. To pseudoglossa.gr δεσμεύεται για τη μη χρήση του συγκεκριμένου υλικού με οποιοδήποτε τρόπο.
+]]>		
+	</mx:htmlText>
+    </mx:TextArea>
+</mx:TitleWindow>

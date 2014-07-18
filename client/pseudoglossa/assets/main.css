@@ -1,0 +1,104 @@
+/* CSS file */
+
+@font-face 
+{
+	src:url("../assets/DejaVuMonoSansBold.ttf");
+	font-family: pseudocode;
+	advanced-anti-aliasing: true;
+	font-weight:bold;
+	unicode-range:
+		U+2190-U+2190,
+		U+0001-U+00A0, 
+		U+0386-U+03CE,		
+		U+27F5-U+27F5,
+		U+2260-U+2260,
+		U+2264-U+2265;
+}
+global{focusThickness:0}
+
+Application
+{		
+	 backgroundGradientAlphas: 1.0, 1.0;
+	 backgroundGradientColors: #F6F3F3, #B7B6B6; 
+	 padding:0;
+	 
+}
+Panel.data
+{
+	focusThickness:1;
+}
+TitleWindow
+{
+	 backgroundGradientAlphas: 1.0, 1.0;
+	 backgroundGradientColors: #F6F3F3, #B7B6B6; 
+	 padding:0;
+}
+Label.lines {
+	font-family: pseudocode;
+	fontSize: 14;
+	font-weight: bold;
+	color: #404040;	
+	text-align:right;
+	leading:4;
+	backgroundGradientAlphas: 1.0, 1.0;
+	 backgroundGradientColors: #F6F3F3, #B7B6B6; 
+	 padding:0;
+}
+TextArea.code
+{
+	fontAntiAliasType:advanced;
+	fontFamily: pseudocode;
+	font-weight: bold;
+	fontSize: 14;
+	leading:4;
+	focusThickness:0;
+}
+TextArea.output {
+	font-family: pseudocode;
+	font-weight: bold;
+	fontSize: 14;
+	color:#000000;
+}
+Label.heading
+{
+	font-family: pseudocode;
+	fontSize: 28;
+	font-weight: bold;
+	font-weight:bold;	
+}
+
+Label.subHeading
+{
+	font-family: pseudocode;
+	fontSize: 16;
+	font-weight:bold;	
+}
+
+.navButton
+{	
+	font-family: pseudocode;
+	themeColor: #7C8CB7;
+ 	fillAlphas: 0.75, 0.75, 1.0, 1.0; 
+	fillColors: #EFEFEF, #DFDFDF, #FBFAFA, #EAE8E8;	
+	paddingTop: 0;
+	paddingBottom: 0;
+	paddingLeft: 2;
+	paddingRight: 2;
+	fontSize: 14;
+	fontWeight:bold;
+}
+.aboutTitleText {
+	fontSize: 14px;
+	font-family: pseudocode;
+}
+
+.aboutText {
+	paddingTop: 10px;
+	paddingBottom: 10px;
+	fontSize: 10px;
+	font-family: pseudocode;
+}
+TextArea.handCursor 
+{
+	cursor:hand;
+}

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute"
+	title="Σφάλμα!" 
+	showCloseButton="true"
+	close="hide()">
+	<mx:TextArea id="textArea" wordWrap="true" editable="false" verticalScrollPolicy="auto" width="400" height="300" />
+	<mx:Script>
+		<![CDATA[
+			import mx.core.Application;
+			import mx.managers.PopUpManager;	
+			public static var obj:ErrorDialog;
+			public static var app:Pseudoglossa;
+			
+			public static function get instance():ErrorDialog
+			{
+				if(!obj) {
+					obj = new ErrorDialog();
+					obj.initialize();
+					app = Pseudoglossa.getInstance();
+				}
+				return obj;
+			}
+			
+			private function hide():void {
+				PopUpManager.removePopUp(this);
+			}
+			public static function showError(t:String):void 
+			{
+				instance.textArea.text = t;
+				PopUpManager.addPopUp(instance, app, false);
+				PopUpManager.centerPopUp(instance);
+				instance.setFocus();				
+			}
+		]]>
+	</mx:Script>
+</mx:TitleWindow>

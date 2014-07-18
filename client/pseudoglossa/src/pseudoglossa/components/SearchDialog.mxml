@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute"
+	title="Εύρεση και Αντικατάσταση" creationComplete="init()"
+	 showCloseButton="true"
+	 close="hide()">
+<mx:Script>
+	<![CDATA[
+import flash.events.KeyboardEvent;
+import flash.ui.Keyboard;
+
+import mx.managers.PopUpManager;
+
+import pseudoglossa.components.text.ExtTextArea;
+public var startIndex:int;
+public var textArea:ExtTextArea;
+public var needle:String;
+public var wholeWord:Boolean;
+public var matchCase:Boolean;
+public var oldStartIndex:int;
+
+public function setTextArea(area:ExtTextArea):void {
+	this.textArea = area;
+}
+public function search():Boolean {
+	if(this.searchInput.text) {
+		if((this.searchInput.text != this.needle ) || (this.wholeWord != wholeWordCB.selected) || (this.matchCase != matchCaseCB.selected)) {
+			this.needle = this.searchInput.text
+			this.startIndex = -1;
+			this.wholeWord = wholeWordCB.selected;
+			this.matchCase = matchCaseCB.selected;
+		}
+		if(this.startIndex == -1 || this.startIndex == this.oldStartIndex) 
+			this.startIndex = 0;
+		this.oldStartIndex = this.startIndex;
+		if(this.textArea.selectionBeginIndex != this.textArea.selectionEndIndex && this.textArea.selectionEndIndex < this.textArea.length - 1) {
+			this.startIndex += 1;
+		}
+		this.startIndex = this.textArea.search(this.needle, this.startIndex, this.matchCase, this.wholeWord);
+	}
+	return this.startIndex != -1;
+}
+public function replace():void {
+	this.textArea.replaceSelection(this.replaceInput.text);
+	//if(!this.replaceInput.text)
+		//this.startIndex -= 1;
+}
+public function searchReplace():void {	
+	this.textArea.setFocus();
+	this.replace();
+	this.search();
+}
+public function replaceAll():void {
+	var pos:uint = this.textArea.tf.caretIndex;
+	while(this.search())
+		this.replace();
+	
+	/*var nf:uint = 0;
+	while(nf < 2) {
+		if(this.search()) {
+			this.replace();
+		}
+		else {
+			nf++;
+		}
+	}*/
+}
+public function focus():void {
+	callLater(this.searchInput.setFocus);
+}
+private function changeHandler():void {
+	if(this.searchInput.length > 0) {
+		this.sb.enabled = true;
+		this.rb.enabled = true;
+		this.srb.enabled = true;
+		rab.enabled = true;
+	}
+	else { 
+		this.sb.enabled = false;
+		this.rb.enabled = false;
+		this.srb.enabled = false;
+		this.rab.enabled = false;
+	}
+}
+private function init():void {
+	this.startIndex = 0;
+	this.addEventListener(KeyboardEvent.KEY_UP, function(e:KeyboardEvent):void {
+		if(e.keyCode == Keyboard.ESCAPE)
+			hide();
+	});
+}
+private function hide():void {
+	PopUpManager.removePopUp(this);
+}
+]]>
+</mx:Script>
+<mx:VBox id="vbox" horizontalAlign="left" width="100%" paddingLeft="10" paddingRight="10">
+	<mx:HBox>
+		<mx:VBox verticalAlign="bottom" verticalGap="11">
+			<mx:Label text="Εύρεση του : "/>
+			<mx:Label text="Αντικατάσταση με : "/>
+		</mx:VBox>
+		<mx:VBox>			
+			<mx:TextInput id="searchInput" enter="search()" focusThickness="1" change="changeHandler()" />			
+			<mx:TextInput id="replaceInput" enter="replace()" focusThickness="1" />	
+		</mx:VBox>
+		
+	</mx:HBox>
+	<mx:HBox>
+		<mx:Label text="Ταίριασμα πεζών-κεφαλαίων" />
+		<mx:CheckBox id="matchCaseCB" focusThickness="1" />		
+	</mx:HBox>
+	<mx:HBox>
+		<mx:Label text="Ολόκληρες λέξεις μόνο" />
+		<mx:CheckBox id="wholeWordCB" focusThickness="1" />
+	</mx:HBox>
+	<mx:HBox id="hbox2" horizontalAlign="center" width="100%" paddingBottom="10" paddingTop="10">
+		<mx:VBox>
+			<mx:Button label="Εύρεση" click="search()" id="sb" focusThickness="1" enabled="false" width="160" />
+			<mx:Button label="Αντικατάσταση" click="replace()" id="rb" focusThickness="1" enabled="false" width="160" />
+		</mx:VBox>
+		<mx:VBox>
+			<mx:Button label="Εύρεση&amp;Αντικατάσταση" click="searchReplace()" id="srb" focusThickness="1" enabled="false" width="160" />
+			<mx:Button label="Αντικατάσταση όλων" click="replaceAll()" id="rab" focusThickness="1" enabled="false" width="160" />
+		</mx:VBox>
+	</mx:HBox>	
+</mx:VBox>
+</mx:TitleWindow>

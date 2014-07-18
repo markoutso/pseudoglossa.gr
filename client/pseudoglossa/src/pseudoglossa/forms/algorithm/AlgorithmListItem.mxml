@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:mx="http://www.adobe.com/2006/mxml">
+	<mx:Script>
+		<![CDATA[
+		import pseudoglossa.Helper;
+			[Bindable]
+			public var algorithm:Object;
+			
+		]]>
+	</mx:Script>
+	<mx:HBox>
+		<mx:VBox>
+			<mx:Label text="{Helper.formatDate(algorithm.created)}" color="0x8E8E8E" />		
+		</mx:VBox>
+		<mx:VBox>
+			<mx:LinkButton label="{algorithm.name}" color="0x1259C7"  />
+				<mx:Repeater id="rpgt" dataProvider="{algorithm.globalTags}">
+					<mx:Label text="{rpgt.currentItem}" />
+				</mx:Repeater>							
+		</mx:VBox>
+	</mx:HBox>
+</mx:VBox>

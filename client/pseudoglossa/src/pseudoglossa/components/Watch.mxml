@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:mx="http://www.adobe.com/2006/mxml" width="200" height="100%" initialize="init()">
+	<mx:Script xmlns:mx="http://www.adobe.com/2006/mxml">
+		<![CDATA[
+			import pseudoglossa.Environment;
+			import mx.events.DataGridEvent;
+			import mx.core.Application;
+			
+			public var env:Environment;
+			
+			private var _fontSize:uint;
+			
+			public var app:Object = Application.application;
+			
+			[Bindable]
+			public var Settings:Object;
+			
+			private function init():void {
+				Settings = app.settings;
+				setFontSize(Settings.FONT_SIZE);
+			}
+//			public function updateVariable(e:DataGridEvent):void {
+//				if(e.reason == 'newRow') {
+//					this.env.changeVariableValue(dataGrid.dataProvider[e.rowIndex].name, dataGrid.dataProvider[e.rowIndex].value);
+//				} 
+//			}
+			//itemEditEnd="updateVariable(event)" 
+			public function setFontSize(fontSize:uint):void {
+				if(this.initialized) {
+					dataGrid.setStyle('fontSize', fontSize - 4);
+				}
+			}
+		]]>
+	</mx:Script>
+	<mx:DataGrid id="dataGrid" width="100%" height="100%" editable="true" 
+				 fontWeight="normal"  
+				 borderSides="top" fontSize="{Settings.FONT_SIZE - 4}">
+		<mx:columns>
+			<mx:DataGridColumn dataField="name" headerText="Όνομα" editable="false"/>
+			<mx:DataGridColumn dataField="value" headerText="Τιμή" editable="false" sortable="false" />
+		</mx:columns>
+	</mx:DataGrid>
+</mx:VBox>

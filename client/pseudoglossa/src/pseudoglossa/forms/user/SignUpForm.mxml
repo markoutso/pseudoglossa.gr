@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PForm xmlns="pseudoglossa.forms.*" xmlns:mx="http://www.adobe.com/2006/mxml" width="500" height="330" title="Εγγραφή χρήστη">
+<mx:Script>
+	<![CDATA[
+		import mx.rpc.events.ResultEvent;
+		import mx.validators.Validator;
+		import mx.validators.ValidationResult;
+		import mx.events.ValidationResultEvent;
+		import pseudoglossa.components.PasswordValidator;
+		import flash.events.Event;
+		import pseudoglossa.Helper;
+		import mx.utils.ObjectUtil;
+	
+	override protected function init():void {
+		super.init();
+		isValid = false;
+		usernameV.expression = '^[a-z][a-z0-9\-_]{3,}$';
+		usernameV.noMatchError = 'μη έγκυρο όνομα χρήστη (αγγλικοί χαρακτήρες, αριθμοί, παύλες (πρώτος χαρακτήρας υποχρεωτικά αγγλικός), τουλάχιστον 4 χαρακτήρες)';
+		usernameV.requiredFieldError = 'υποχρεωτικό πεδίο';
+		password1V.requiredFieldError = 'υποχρεωτικό πεδίο';
+		password1V.tooShortError = 'τουλάχιστον 6 χαρακτήρες';
+		password1V.tooLongError = 'το πολύ 100 χαρακτήρες';
+		password2V.requiredFieldError = 'υποχρεωτικό πεδίο';
+		password2V.tooShortError = 'τουλάχιστον 6 χαρακτήρες';
+		password2V.tooLongError = 'το πολύ 100 χαρακτήρες';
+		
+		password1.addEventListener('change', function(e:Event):void {
+			password2V.confirmPass = password1.text;
+			password2V.validate(null, password2.text == '');
+		});		
+	}
+	override public function initServices():void {
+		service.addResultListener('checkAndAddUser', resultHandler);	
+	}
+	override public function setFocus():void {
+		username.setFocus();
+		username.text = ''
+		firstName.text = '';
+		lastName.text = '';
+		email.text = '';
+		password1.text = '';
+		password2.text = '';
+	}
+	private function signUp(e:Event):void {
+		service.call('checkAndAddUser', username.text, firstName.text, lastName.text, password1.text, email.text, Helper.Settings.defaultSettings);
+		submit.enabled = false;
+	}
+	private function resultHandler(e:ResultEvent):void {
+		if(e.result == true) {
+			hide();			
+			service.call('pLogin', username.text, password1.text, false);
+		}
+		else {
+			submit.enabled = true;
+			msg.text = e.result.toString();
+		}
+	}
+	private function validateForm(e:Event):void {
+		focussedFormControl = e.target as DisplayObject;                
+		isValid = true;
+		validate(emailV);
+		validate(usernameV);
+		validate(password1V);
+		validate(password2V);
+	}	
+	]]>
+</mx:Script>
+	<mx:VBox paddingLeft="5">
+			<mx:Form defaultButton="{submit}" paddingBottom="0">
+				<mx:FormItem label="Όνομα Χρήστη : " toolTip="αγγλικοί χαρακτήρες, αριθμοί, παύλες (πρώτος χαρακτήρας υποχρεωτικά αγγλικός)" required="true">
+		          <mx:TextInput id="username" width="200" change="validateForm(event)"/>
+		       </mx:FormItem>
+		       <mx:FormItem label="Όνομα : ">
+		          <mx:TextInput id="firstName" width="200" change="validateForm(event)"/>
+		       </mx:FormItem>
+		       <mx:FormItem label="Επώνυμο : ">
+		          <mx:TextInput id="lastName" width="200" change="validateForm(event)"/>
+		       </mx:FormItem>
+		         <mx:FormItem label="Συνθηματικό : " required="true">
+		            <mx:TextInput id="password1" width="200" displayAsPassword="true" change="validateForm(event)"/>
+		        </mx:FormItem>
+		         <mx:FormItem label="Επανάληψη Συνθηματικού: " required="true">
+		            <mx:TextInput id="password2" width="200" displayAsPassword="true" change="validateForm(event)"/>
+		        </mx:FormItem>
+		        <mx:FormItem label="Διεύθυνση email : " required="true">
+		          <mx:TextInput id="email" width="200" change="validateForm(event)"/>
+		       </mx:FormItem>       
+		        <mx:FormItem>
+		            <mx:Button id="submit" enabled="{isValid}" 
+		                label="Εγγραφή" 
+		                click="signUp(event);"/>
+		        </mx:FormItem>
+		    </mx:Form> 	
+		    <mx:Text id="msg" color="red"/>		    
+	</mx:VBox>
+	
+    <custom:PEmailValidator id="emailV" source="{email}" property="text" required="true" xmlns:custom="pseudoglossa.components.*"/>
+    <mx:RegExpValidator id="usernameV" source="{username}" property="text" expression="^[a-z][a-z0-9\-_]+$" flags="i" required="true" />
+	<mx:StringValidator id="password1V" required="true" minLength="6" maxLength="30"  source="{password1}" property="text"/>
+	<custom:PasswordValidator xmlns:custom="pseudoglossa.components.*" id="password2V" required="true" minLength="6" maxLength="30"
+								source="{password2}" property="text" confirmPass="{password1.text}"/>
+</PForm>

@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PForm xmlns="pseudoglossa.forms.*" xmlns:mx="http://www.adobe.com/2006/mxml" title="Είσοδος" show="msg.text=''" close="close(event)">
+ <mx:Script>
+	<![CDATA[
+		import mx.events.CloseEvent;
+	import mx.rpc.events.ResultEvent;
+	import mx.managers.PopUpManager;
+	import pseudoglossa.forms.user.SendPasswordForm;
+	public var user:Object;
+	public var result:Boolean;
+	
+	private var _sendPassForm:SendPasswordForm;
+	
+	private function login(e:Event):void {
+		service.call('pLogin', username.text, password.text, rememberMe.selected);
+	}
+	private function close(e:CloseEvent):void {
+		hide();
+	}
+	private function get sendPassForm():SendPasswordForm {
+		if(!_sendPassForm) {
+			_sendPassForm = new SendPasswordForm();
+		}
+		return _sendPassForm;
+	}
+	public function clearData():void {
+		msg.text = '';
+		username.text = '';
+		password.text = '';
+	}
+	override public function setFocus():void {
+		username.setFocus();
+	}	
+	override public function initServices():void {
+		service.addResultListener('pLogin', function(e:ResultEvent):void {
+			if(e.result == true) {
+				hide();
+			}
+			else {
+				msg.setStyle('color', 'red');
+				msg.text = 'Αδυναμία εισόδου';
+			}
+		});
+	}
+	private function sendPass():void {
+		PopUpManager.addPopUp(sendPassForm, this, true);
+		PopUpManager.centerPopUp(sendPassForm);
+		sendPassForm.setFocus();
+	}
+	private function newUser(e:Event):void {
+		PopUpManager.addPopUp(Pseudoglossa.instance.signUpForm, this, true);
+		PopUpManager.centerPopUp(Pseudoglossa.instance.signUpForm);
+		Pseudoglossa.instance.signUpForm.setFocus();
+	}
+	private function onResult(e:ResultEvent):void {
+	}
+	]]>
+</mx:Script>
+<mx:VBox horizontalAlign="center" paddingBottom="5"  >
+	 <mx:Form defaultButton="{submit}" paddingBottom="0">
+        <mx:FormItem label="Όνομα Χρήστη : ">
+            <mx:TextInput id="username" width="100"/>
+        </mx:FormItem>
+        <mx:FormItem label="Συνθηματικό : ">
+            <mx:TextInput id="password" width="100" displayAsPassword="true"/>
+        </mx:FormItem>
+        <mx:FormItem label="Να με θυμάσαι : ">
+            <mx:CheckBox id="rememberMe"/>
+        </mx:FormItem>
+        <mx:FormItem>
+            <mx:Button id="submit" 
+                label="Είσοδος" 
+                click="login(event);"/>               
+        </mx:FormItem>
+    </mx:Form>
+	<mx:Label id="msg" color="red" />
+	<mx:HBox paddingBottom="5" paddingLeft="5" paddingRight="5">
+		<mx:LinkButton id="signUp"
+                label="Δημιουργία Λογαριασμού" 
+                click="newUser(event);"/>
+          <mx:LinkButton id="forgotB"
+                label="Ξέχασα τον κωδικό μου" 
+                click="sendPass();"/>
+	</mx:HBox>       
+</mx:VBox>    
+</PForm>

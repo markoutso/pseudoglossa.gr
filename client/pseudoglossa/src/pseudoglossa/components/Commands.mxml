@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:mx="http://www.adobe.com/2006/mxml" width="200" height="100%" borderStyle="none">
+	<mx:Script xmlns:mx="http://www.adobe.com/2006/mxml">
+		<![CDATA[
+			import flash.text.TextLineMetrics;
+			
+			import mx.controls.Text;
+			import mx.core.IUITextField;
+			
+			import pseudoglossa.Helper;
+			public var spacePattern:RegExp = /\s/;
+			public var codeArea:CodeArea;
+			private var metrics:TextLineMetrics;
+			
+			private static var commands:Array = [
+				{text: 'Αλγόριθμος', tabs: 0},
+				{text: 'Δεδομένα', tabs: 1},
+				{text: 'Διάβασε', tabs: 1},
+				{text: 'Εμφάνισε', tabs: 1},
+				{text: 'Εκτύπωσε', tabs: 1},
+				{text: 'Αποτελέσματα', tabs: 1},
+				{text: 'Αν τότε', tabs: 1},
+				{text: 'αλλιώς αλλιώς_αν', tabs: 2},
+				{text: 'Τέλος_αν', tabs: 1},
+				{text: 'Όσο επανάλαβε', tabs: 1},
+				{text: 'Τέλος_επανάληψης', tabs: 1},
+				{text: 'επανάλαβε', tabs: 1},
+				{text: 'Αρχή_επανάληψης', tabs: 1},
+				{text: 'Μέχρις_ότου', tabs: 1},
+				{text: 'Για από μέχρι με_βήμα', tabs: 1},
+				{text: 'Τέλος_επανάληψης', tabs: 1},
+				{text: 'Αντιμετάθεσε', tabs: 1},
+				{text: 'Καθάρισε', tabs: 1},
+				{text: 'Κάλεσε', tabs: 1},
+				{text: 'Αποτελέσματα', tabs: 1},
+				{text: 'Τέλος', tabs: 0},
+				{text: 'Αληθής  Ψευδής', tabs: 1},
+				{text: 'Α_Τ() Α_Μ() Τ_Ρ()', tabs: 1},
+				{text: 'Ε() ΛΟΓ()', tabs: 1},
+				{text: 'ΗΜ() ΣΥΝ() ΕΦ() ΤΟΞ_ΕΦ()' , tabs: 1},
+				{text: 'ΜΗΚΟΣ() ΤΥΠΟΣ() ΤΥΧΑΙΟΣ()', tabs: 1},
+				{text: 'και ή Όχι div mod', tabs: 1},
+				{text: '←  ≥  ≤  ≠ > < = + - * / ^', tabs: 1} ];
+			
+			
+			
+			private function insertText(e:MouseEvent):void {
+				if(e.target is mx.core.IUITextField) {
+					var i:uint = textArea.selectionBeginIndex;
+					var f:uint;
+					var r:uint;
+					f = i;
+					r = i;
+					if(!textArea.text.charAt(i).match(spacePattern)) {
+						while(f > 0 && !textArea.text.charAt(f).match(spacePattern)) f--;
+						while(r < textArea.text.length && !textArea.text.charAt(r).match(spacePattern)) r++;
+						if(f != 0) {
+							f++;
+						}
+						codeArea.insertAtCaretPos(textArea.text.substring(f,r) + ' ');
+						
+					}
+					else {		
+						var idx:uint = Math.floor((e.localY + 2) / (metrics.height)) + verticalScrollPosition;
+						if(idx < commands.length){
+							codeArea.insertAtCaretPos((commands[idx].text as String).split(' ')[0] + ' ');
+						}
+					}
+					codeArea.textArea.setSelection(codeArea.textArea.tf.caretIndex, codeArea.textArea.tf.caretIndex);
+					codeArea.textArea.setFocus();
+				}
+			}
+			public function setFontSize(fontSize:uint):void {
+				textArea.setStyle('fontSize', fontSize);
+			}
+			private function init():void {
+				textArea.text = commands.map(function(command:Object, ...args):String {
+					return Helper.strRepeat('   ', command.tabs) + command.text;
+				}).join('\n');
+				metrics = textArea.getLineMetrics(0);
+				textArea.addEventListener(MouseEvent.CLICK, insertText);
+			}
+		]]>
+	</mx:Script>
+	<mx:TextArea id="textArea" height="100%" width="100%" creationComplete="init()" 
+				 editable="false" fontFamily="pseudocode" fontSize="14"
+				 fontWeight="bold" borderColor="#FFFFFF" />
+</mx:VBox>

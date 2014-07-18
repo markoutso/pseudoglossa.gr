@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:HBox xmlns:mx="http://www.adobe.com/2006/mxml" creationComplete="init()">
+<mx:Script>
+	<![CDATA[
+		import mx.controls.Label;
+		import flash.events.MouseEvent;
+		import mx.controls.Alert;
+		import mx.controls.LinkButton;
+		import pseudoglossa.forms.PaginatorEvent;
+		[Bindable]
+		public var currentPageNumber:Number;		
+		[Bindable]
+		public var itemsPerPage:Number;		
+		[Bindable]
+		public var lastPageNumber:Number;		
+		[Bindable]
+		public var pageCount:Number;
+		[Bindable]
+		public var previous:Number;
+		[Bindable]
+		public var next:Number;
+		[Bindable]
+		public var totalItemCount:Number;
+		[Bindable]
+		public var visibleLinks:Number;	
+	
+		[Bindable]
+		public var pageClicked:Number;
+	
+	public function init():void
+	{
+					
+	}
+	public function render():void 
+	{
+		pageCount = Math.ceil(totalItemCount / itemsPerPage);
+		removeAllChildren();
+		
+		if(pageCount > 1) {
+			var links:Number = 0;
+			var lb:LinkButton;
+			var e:PaginatorEvent = new PaginatorEvent();
+			var page:Number;
+			var deltaS:Number;
+			var deltaE:Number;
+			var s1:Number;
+			var e1:Number;
+			var s2:Number;
+			var i:int;
+			
+			if(currentPageNumber != 1) {
+				lb = new LinkButton();
+				lb.label = 'Προηγ.';
+				addChild(lb)
+				links += 1;
+				lb.addEventListener(MouseEvent.CLICK, function():void{
+					pageClicked = currentPageNumber - 1;
+					e.pageClicked = pageClicked;
+					dispatchEvent(e);
+				});
+			}
+			if(visibleLinks < pageCount) {
+				if(currentPageNumber != pageCount) {
+					links += 1;
+				}		
+				deltaS = Math.ceil((visibleLinks - links) / 2);
+				deltaE = Math.floor((visibleLinks - links) / 2);		
+						
+				s1 = 1;
+				while(s1 + deltaS <= currentPageNumber + 1) {
+					s1 += 1;
+				}
+				while((pageCount - s1) < (deltaS + deltaE) && (s1 > 0)) {
+					s1 -= 1;
+				}
+				
+				s2 = pageCount - deltaE + 1;
+				e1 = s1 + deltaS - 1;
+				if(s2 == e1 + 2 ) {
+					s2 = e1 + 1;
+					s1 += 1;
+				}
+				else if(s2 == e1 + 1) {
+					s2 = e1 + 1;
+				}
+				for(i = s1; i <= e1 ; i++) {
+					makeLink(i);			
+				}	
+				if(s2 - e1 > 2){
+					var l:Label = new Label();
+					l.text = '...';
+					addChild(l);
+				}			
+				for(i = s2; i <= pageCount; i++) {
+					makeLink(i);
+				}
+			}
+			else {
+				for(i = 1; i <= pageCount; i++) {
+					makeLink(i);
+				} 
+			}
+			
+			if(currentPageNumber < pageCount) {
+				lb = new LinkButton();
+				lb.label = 'Επομ.';
+				lb.addEventListener(MouseEvent.CLICK, function():void{
+					pageClicked = currentPageNumber + 1;
+					e.pageClicked = pageClicked;
+					dispatchEvent(e);
+				});
+				addChild(lb)
+			}
+		}
+	}
+	private function makeLink(page:Number):void 
+	{
+		var lb:LinkButton = new LinkButton();
+		lb.label = page.toString();
+		lb.enabled = page != currentPageNumber;
+		lb.addEventListener(MouseEvent.CLICK, function(p:Number):Function{
+			return function():void {
+				pageClicked = p;
+				var e:PaginatorEvent = new PaginatorEvent();
+				e.pageClicked = p;
+				dispatchEvent(e);	
+			}				
+		}(page));
+		addChild(lb);
+	}
+	]]>
+</mx:Script>
+</mx:HBox>

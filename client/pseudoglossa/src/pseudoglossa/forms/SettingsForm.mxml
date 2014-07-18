@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PForm xmlns="pseudoglossa.forms.*" xmlns:mx="http://www.adobe.com/2006/mxml" title="Ρυθμίσεις" creationComplete="init()">
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.events.NumericStepperEvent;
+			import mx.core.Application;
+			
+			public var obj:Object = {};
+			
+			override protected function init():void
+			{
+				super.init();
+			}
+			override public function setFocus():void
+			{
+				super.setFocus();
+				if(app.isUserLogged) {
+					sortFieldCombo.selectedIndex = getColItemIndex(Settings.SORT_FIELD, fieldCol);
+					sortTypeCombo.selectedIndex = getColItemIndex(Settings.SORT_TYPE, typeCol);
+				}		
+			}
+			override public function hide():void 
+			{
+				/*something possibly related to callLater bullshit */
+				Settings.setFontSize(fontStepper.value);
+				
+				super.hide();
+			}
+			public function fontHandler(event:Object):void
+			{
+				Settings.setFontSize(fontStepper.value);
+			}
+			public function delayHandler(event:Object):void
+			{
+				Settings.setDelay(delayStepper.value);	
+			}
+			public function tabsHandler(event:Object):void
+			{
+				Settings.setInsertTabs(insertTabsCB.selected);
+			}
+//			public function spaceHandler(event:Object):void 
+//			{
+//				Settings.setInsertSpace(insertSpaceCB.selected);
+//			}
+			public function sortFieldHandler(event:Object):void 
+			{
+				Settings.setSort(sortFieldCombo.selectedItem.data, sortTypeCombo.selectedItem.data);	
+			}
+			public function sortTypeHandler(event:Object):void
+			{
+				Settings.setSort(sortFieldCombo.selectedItem.data, sortTypeCombo.selectedItem.data);
+			}
+			public function inputFileHandler(event:Object):void
+			{
+				Settings.setInputFile(inputFileCB.selected);
+				if(logInputCB.selected) {
+					logInputCB.selected = false;
+					Settings.setLogInput(false);
+				}
+			}
+			public function logInputHandler(event:Object):void
+			{
+				Settings.setLogInput(logInputCB.selected);
+				if(inputFileCB.selected) {
+					inputFileCB.selected = false;
+					Settings.setInputFile(false);
+				}
+			}
+			public function save(event:Object = null):void
+			{
+				obj['FONT_SIZE'] = Settings.FONT_SIZE;
+				obj['INSERT_TABS'] = Settings.INSERT_TABS;
+				obj['STEP_DELAY'] = Settings.STEP_DELAY;
+				obj['INSERT_SPACE'] = Settings.INSERT_SPACE;
+				obj['SORT_FIELD'] = Settings.SORT_FIELD;
+				obj['SORT_TYPE'] = Settings.SORT_TYPE;
+				//obj['USE_INPUT_FILE'] = Settings.USE_INPUT_FILE;
+				//obj['LOG_INPUT'] = Settings.LOG_INPUT;
+				service.call('saveSettings', obj);
+			}
+			public function reset(event:Object = null):void
+			{
+				Settings.reset();
+				fontStepper.value = Settings.defaultSettings.FONT_SIZE;
+				delayStepper.value = Settings.defaultSettings.STEP_DELAY;
+				insertTabsCB.selected = Settings.defaultSettings.INSERT_TABS;
+				//insertSpaceCB.selected = Settings.defaultSettings.INSERT_SPACE;
+				inputFileCB.selected = Settings.defaultSettings.USE_INPUT_FILE;
+				logInputCB.selected = Settings.defaultSettings.LOG_INPUT;
+			}
+		]]>
+	</mx:Script>
+	<mx:VBox paddingTop="10" paddingLeft="10" paddingBottom="10" paddingRight="10">
+		<mx:Label text="Γενικές" fontWeight="bold"/>
+		<mx:VBox paddingLeft="30">
+			<mx:HBox>
+				<mx:Label text="Μέγεθος γραμματοσειράς"/>
+				<mx:NumericStepper minimum="12" maximum="48" stepSize="1" value="{Settings.FONT_SIZE}" id="fontStepper" change="fontHandler(event)"/>
+			</mx:HBox>
+			<mx:HBox>
+				<mx:Label text="Αυτόματη στοίχιση κατά την πληκτρολόγηση"/>
+				<mx:CheckBox id="insertTabsCB" selected="{Settings.INSERT_TABS}" click="tabsHandler(event)"/>
+			</mx:HBox>
+			<mx:HBox>
+				<mx:Label text="Καθυστέρηση Εκτέλεσης (ms)"/>
+				<mx:NumericStepper id="delayStepper" value="{Settings.STEP_DELAY}" minimum="50" maximum="2000" stepSize="50" change="delayHandler(event)"/>
+			</mx:HBox>
+			<!--
+			<mx:HBox>
+				<mx:Label text="Παρεμβολή κενού κατά την εμφάνιση διαδοχικών τιμών"/>
+				<mx:CheckBox id="insertSpaceCB" selected="{Settings.INSERT_SPACE}" click="spaceHandler(event)"/>
+			</mx:HBox>
+			-->
+		</mx:VBox>
+		<mx:Label text="Αρχείο Εισόδου" fontWeight="bold"/>
+		<mx:VBox paddingLeft="30">
+			<mx:HBox>
+				<mx:Label text="Χρήση αρχείου εισόδου κατά την εκτέλεση"/>
+				<mx:CheckBox id="inputFileCB" selected="{Settings.USE_INPUT_FILE}" click="inputFileHandler(event)"/>
+			</mx:HBox>
+			<mx:HBox>
+				<mx:Label text="Καταγραφή εισόδου"/>
+				<mx:CheckBox id="logInputCB" selected="{Settings.LOG_INPUT}" click="logInputHandler(event)"/>
+			</mx:HBox>
+		</mx:VBox>
+		
+		<mx:VBox paddingTop="10" visible="{app.isUserLogged}" includeInLayout="{app.isUserLogged}">
+			<mx:Label text="Προεπιλογές Ταξινόμησης Αλγορίθμων" fontWeight="bold"/>
+			<mx:HBox paddingLeft="30">
+				<mx:Label text="Πεδίο " />
+				<mx:ComboBox id="sortFieldCombo" change="sortFieldHandler(event)">
+					<mx:ArrayCollection id="fieldCol">
+						<mx:Object label="Όνομα" data="name"/>
+						<mx:Object label="Ημερ.δημιουργίας" data="created"/>
+						<mx:Object label="Ημερ.τροποποίησης" data="updated"/>
+					</mx:ArrayCollection>
+				</mx:ComboBox>
+			</mx:HBox >
+			<mx:HBox paddingLeft="30">
+				<mx:Label text="Σειρά " />
+				<mx:ComboBox id="sortTypeCombo" change="sortTypeHandler(event)">
+					<mx:ArrayCollection id="typeCol">
+						<mx:Object label="Φθίνουσα" data="DESC"/>
+						<mx:Object label="Αύξουσα" data="ASC"/>
+					</mx:ArrayCollection>
+				</mx:ComboBox>
+			</mx:HBox>
+		</mx:VBox>
+		
+		<mx:HBox paddingTop="10" horizontalAlign="center" width="100%">
+			<mx:Button label="Κλείσιμο" click="hide()" />
+			<mx:Button label="Επαναφορά" click="reset(event)"/>
+			<mx:Button label="Αποθήκευση" click="save()" visible="{app.isUserLogged}" includeInLayout="{app.isUserLogged}"/>
+		</mx:HBox>
+	</mx:VBox>
+</PForm>

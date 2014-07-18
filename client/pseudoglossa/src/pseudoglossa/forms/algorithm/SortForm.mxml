@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PForm xmlns="pseudoglossa.forms.*" xmlns:mx="http://www.adobe.com/2006/mxml" title="Επιλογές ταξινόμησης">
+<mx:Script>
+	<![CDATA[
+		import mx.controls.Alert;
+		[Bindable]
+		public var sortField:String = 'name';
+		
+		[Bindable]
+		public var sortType:String = 'ASC';
+		
+		public function sortFieldHandler(event:Object):void 
+		{
+			sortField = sortFieldCombo.selectedItem.data
+		}
+		public function sortTypeHandler(event:Object):void
+		{
+			sortType = sortTypeCombo.selectedItem.data;
+		}
+		override protected function init():void
+		{
+			super.init();
+			setSelection(Settings.SORT_FIELD, Settings.SORT_TYPE);
+			
+		}
+		public function setSelection(field:String, type:String):void
+		{
+			sortFieldCombo.selectedIndex = getColItemIndex(field, fieldCol);
+			sortTypeCombo.selectedIndex = getColItemIndex(type, typeCol);
+			sortField = field;
+			sortType = type;
+			
+		}
+		override public function hide():void
+		{
+			dispatchEvent(new Event('sortChanged'));
+			super.hide();
+		}
+	]]>
+</mx:Script>
+<mx:VBox paddingBottom="15" paddingLeft="15" paddingRight="15">
+	<mx:VBox paddingTop="10">
+		<mx:Label text="Ταξινόμηση Αλγορίθμων" fontWeight="bold"/>
+		<mx:HBox paddingLeft="30">
+			<mx:Label text="Πεδίο " />
+			<mx:ComboBox id="sortFieldCombo" change="sortFieldHandler(event)">
+				<mx:ArrayCollection id="fieldCol">
+					<mx:Object label="Όνομα" data="name"/>
+					<mx:Object label="Ημερ.δημιουργίας" data="created"/>
+					<mx:Object label="Ημερ.τροποποίησης" data="updated"/>
+				</mx:ArrayCollection>
+			</mx:ComboBox>
+		</mx:HBox >
+		<mx:HBox paddingLeft="30">
+			<mx:Label text="Σειρά " />
+			<mx:ComboBox id="sortTypeCombo" change="sortTypeHandler(event)">
+				<mx:ArrayCollection id="typeCol">
+					<mx:Object label="Φθίνουσα" data="DESC"/>
+					<mx:Object label="Αύξουσα" data="ASC"/>
+				</mx:ArrayCollection>
+			</mx:ComboBox>
+		</mx:HBox>
+	</mx:VBox>
+<!--
+	<mx:VBox paddingBottom="15" paddingLeft="15" paddingRight="15" paddingTop="15">
+		<mx:Label text="Ταξινόμηση αλγορίθμων κατά : " fontWeight="bold" />
+		<mx:VBox paddingBottom="15" paddingLeft="15" paddingRight="15" >
+			<mx:RadioButtonGroup id="columnGroup" change="colChange(event)" />
+			<mx:RadioButton label="Όνομα" groupName="columnGroup" selected="{column=='name'}" value="name" />
+			<mx:RadioButton label="Ημερομηνία δημιουργίας" groupName="columnGroup" selected="{column=='created'}" value="created" />
+			<mx:RadioButton label="Ημερομηνία τροποποίησης" groupName="columnGroup" selected="{column=='updated'}" value="updated" />
+		</mx:VBox>
+		<mx:Label text="Εμφάνιση κατά : " fontWeight="bold" />
+		 <mx:VBox paddingBottom="15" paddingLeft="15" paddingRight="15">
+			<mx:RadioButtonGroup id="sortTypeGroup" change="sortTypeChange(event)" />
+			<mx:RadioButton label="Αύξουσα σειρά" groupName="sortTypeGroup" selected="{sortType=='ASC'}" value="ASC"/>
+			<mx:RadioButton label="Φθίνουσα σειρά" groupName="sortTypeGroup" selected="{sortType=='DESC'}" value="DESC"/>
+		</mx:VBox>
+-->
+		<mx:HBox horizontalAlign="center" width="100%" paddingTop="20">
+			<mx:Button id="submit" label="Κλείσιμο" click="hide()"  />	
+		</mx:HBox>
+		
+	</mx:VBox>
+</PForm>

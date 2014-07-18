@@ -1,0 +1,418 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PForm xmlns="pseudoglossa.forms.*" xmlns:mx="http://www.adobe.com/2006/mxml" title="Αποθήκευση Αλγορίθμου">
+<mx:Script>
+	<![CDATA[
+		import mx.containers.Panel;
+		import mx.rpc.events.ResultEvent;
+		import mx.validators.Validator;
+		import mx.validators.ValidationResult;
+		import mx.events.ValidationResultEvent;
+		import pseudoglossa.components.PasswordValidator;
+		import flash.events.Event;
+		import mx.utils.ObjectUtil;
+		import pseudoglossa.models.Algorithm;
+		import mx.controls.Alert;
+		import mx.controls.CheckBox;
+		import mx.controls.TextInput;
+		import pseudoglossa.Helper;
+		import pseudoglossa.forms.tag.EditTagForm;
+		import mx.managers.PopUpManager;
+		import mx.controls.Alert;
+		import mx.events.CloseEvent;
+		import pseudoglossa.components.PService;
+		import pseudoglossa.forms.algorithm.BrowseAlgorithmsForm;
+		
+		[Bindable]
+		private var deleteVisible:Boolean = false;
+		
+		[Bindable]
+		public var algorithm:Algorithm = new Algorithm();
+		
+		[Bindable]
+		public var currentGlobalTags:Array;
+		[Bindable]
+		public var currentUserTags:Array;
+		
+		[Bindable]
+		private var showLoad:Boolean;
+		
+		//public var notifyEditor:Boolean;
+		
+		
+				
+		private var _tagForm:EditTagForm;
+		private var _refreshBrowse:Boolean;
+		
+		private var _pendingActions:Array = [];	
+	
+	public function initData():void {		
+		init();		
+	}
+	
+	public function addAfterSaveAction(action:Function):void {
+		_pendingActions.push(action);
+	}
+	public function executeAfterSaveActions():void {
+		_pendingActions.forEach(function(action:Function, ...params):void {
+			action();
+		});
+		_pendingActions = [];
+	}
+	override public function hide():void {
+		
+		if(_refreshBrowse) {
+			if(Pseudoglossa.instance.browseAlgorithmsForm.utcba) {
+				Pseudoglossa.instance.browseAlgorithmsForm.refreshData();
+				_refreshBrowse = false;
+			}
+		}		
+		super.hide();
+		executeAfterSaveActions();
+	}
+		
+	override protected function init():void {
+		super.init();		
+		isValid = false;
+		//notifyEditor = false;
+		_refreshBrowse = false;		
+	}
+	override public function initServices():void {
+		super.initServices();
+		currentGlobalTags = Pseudoglossa.instance.currentGlobalTags;
+		currentUserTags = Pseudoglossa.instance.currentUserTags;
+		service.addResultListener('getGlobalTags', function(e:ResultEvent):void {
+			if(e.result.success === true) {
+				currentGlobalTags = Pseudoglossa.instance.currentGlobalTags; 
+			}
+		});
+		service.addResultListener('getUserTags', onGetUserTags); 		
+		service.addResultListener('createUserTag', onCreateUserTag);
+		service.addResultListener('updateUserTag', onUpdateUserTag);
+		service.addResultListener('deleteUserTag', function(e:ResultEvent):void {
+			algorithm.userTags = algorithm.userTags.filter(function(id:uint, ...params):Boolean{
+				return id != e.result.tagId;
+			});
+			onUpdateUserTag(e);
+		});
+		service.addResultListener('getAlgorithm', function(e:ResultEvent):void {
+			setData(e);
+			//notifyEditor = false;			
+		});
+		service.addResultListener('saveAlgorithm', function(e:ResultEvent):void {
+			if(e.result.success === true) {
+				msg.text = 'Ο αλγόριθμος αποθηκεύτηκε με επιτυχία';				
+				if(Pseudoglossa.instance.currentAlgorithm.id == algorithm.id || !algorithm.id) {
+					//Pseudoglossa.instance.loadAlgorithm(e);
+					Pseudoglossa.instance.mapAlgorithm(e.result.algorithm);
+					Pseudoglossa.instance.saved = true;
+					//notifyEditor = false;
+				}
+				setData(e);
+				_refreshBrowse = true;
+				setTimeout(hide, 400);
+			}			
+		});
+		service.addResultListener('deleteAlgorithm', function(e:ResultEvent):void {
+			if(msg) {
+				if(e.result.success === true) {
+					_refreshBrowse = true;
+					if(Pseudoglossa.instance.currentAlgorithm.id == algorithm.id) {
+						Pseudoglossa.instance.clearAlgorithm();
+					}
+					msg.text = 'Ο αλγόριθμος διαγράφηκε';
+					setTimeout(hide, 400);
+				}
+			}
+		});
+	}
+	public function loadAlgorithm(id:String):void {
+		service.call('getAlgorithm', id);
+	}
+	private function onCreateUserTag(e:ResultEvent):void {
+		if(e.result.success === true) {
+			algorithm.userTags.push(e.result.tagId);
+			onUpdateUserTag(e);
+		}
+	}
+	private function onUpdateUserTag(e:ResultEvent):void {	
+		currentUserTags = Pseudoglossa.instance.currentUserTags;			
+		selectTagCheckBoxes('user');
+		setTagsText('user');
+		tagName.text = '';
+		_refreshBrowse = true;	
+	}
+	private function onGetUserTags(e:ResultEvent):void {
+		if(e.result.success === true) {
+			currentUserTags = Pseudoglossa.instance.currentUserTags;
+		}
+	}
+
+	private function selectTagCheckBoxes(type:String):void {
+		var userTagArr:Array;
+		var checkArr:Array;
+		var hash:Object;
+		var algTagArr:Array;
+		
+		if(type == 'global') {
+			userTagArr = currentGlobalTags;
+			checkArr = gtcba;
+			hash = Pseudoglossa.instance.globalTagPos;
+			algTagArr = algorithm.globalTags;
+		}
+		else {
+			userTagArr = currentUserTags;
+			checkArr = utcba;
+			hash = Pseudoglossa.instance.userTagPos;
+			algTagArr = algorithm.userTags;
+		}
+		var l:uint = userTagArr.length;
+		for(var i:uint = 0; i < l; i++) {
+			checkArr[i].selected = false;
+		}
+		var pos:uint;
+		for(i = 0; i < algTagArr.length; i++) {
+			pos = hash[algTagArr[i]].pos;
+			checkArr[pos].selected = true;
+		}
+		
+	}
+	private function setTagsText(type:String):void {
+		var arr:Array;
+		var ta:TextArea;
+		var hash:Object;
+		if(type == 'global') {
+			arr = algorithm.globalTags;
+			ta = globalTags;
+			hash = Pseudoglossa.instance.globalTagPos;
+		}
+		else {
+			arr = algorithm.userTags;
+			ta = userTags;
+			hash = Pseudoglossa.instance.userTagPos;
+		}
+		ta.text = arr.map(function(pos:uint, ...params):String {
+			return hash[pos].name;
+		}).join(', ');
+		ta.validateNow();
+		ta.verticalScrollPosition = ta.maxVerticalScrollPosition;
+	}
+	private function resetTags(type:String):void {
+		var checkArr:Array;
+		var ta:TextArea;
+		var hash:Object;
+		var currentArr:Array;
+		var algIdArrName:String;
+		if(type == 'global') {
+			checkArr = gtcba;
+			ta = globalTags;
+			hash = Pseudoglossa.instance.globalTagPos;
+			currentArr = currentGlobalTags;
+			algIdArrName = 'globalTags';
+		}
+		else {
+			checkArr = utcba;
+			ta = userTags;
+			hash = Pseudoglossa.instance.userTagPos;
+			algIdArrName = 'userTags';
+			currentArr = currentUserTags;
+		}
+		var arr:Array = [];
+		var idArr:Array;
+		idArr = [];
+		var cb:CheckBox;
+		for(var i:uint = 0; i < checkArr.length; i++) {
+			cb = checkArr[i] as CheckBox;			
+			if(cb.selected) {
+				idArr.push(currentArr[i].id);
+				arr.push(cb.label);
+			}
+		}
+		algorithm[algIdArrName] = idArr;
+		ta.text = arr.join(', ');
+		ta.validateNow();
+		ta.verticalScrollPosition = ta.maxVerticalScrollPosition;
+		ta.dispatchEvent(new Event('change'));
+		
+	}
+	public function setData(o:Object):void {
+		if(initialized) {
+			if(o is ResultEvent) {		
+				if(o.result.success === false) {
+					return;
+				}
+				algorithm.map(o.result.algorithm);
+				deleteVisible = true;
+			}
+			else {
+				algorithm = new Algorithm();
+				algorithm.map(o);
+				deleteVisible = false;
+			}		
+			
+			if(!algorithm.created) {
+				created.text = 'Νέος αλγόριθμος';
+				updated.text = 'Νέος αλγόριθμος';
+			}
+			else {
+				created.text = Helper.formatDateTime(algorithm.created);
+				updated.text = Helper.formatDateTime(algorithm.updated);
+			}
+			selectTagCheckBoxes('global');
+			selectTagCheckBoxes('user');
+			setTagsText('global');
+			setTagsText('user');
+			validateForm();
+			showLoad = algorithm.id && (algorithm.id != Pseudoglossa.instance.currentAlgorithm.id);
+			pName.setSelection(0, pName.text.length);
+		}
+	}
+	override public function setFocus():void {
+		msg.text = '';
+		pName.setFocus();		
+	}
+	private function loadInEditor(e:Object = null):void {
+		Pseudoglossa.instance.loadAlgorithm(algorithm.id);
+		hide();
+		if(Pseudoglossa.instance.browseAlgorithmsForm.visible) {			
+			Pseudoglossa.instance.browseAlgorithmsForm.hide();
+		}
+	}
+	private function save(e:Event):void {
+		algorithm.name = pName.text;
+		algorithm.body = body.text;
+		algorithm.notes = notes.text;
+		service.call('saveAlgorithm', algorithm, algorithm.userTags, algorithm.globalTags);
+		isValid = false;
+	}
+	private function validateForm(e:Event = null):void {
+		isValid = validate(nameV);
+	}
+	private function validateTag(e:Event):void {
+		if(tagName.text == '') {
+			submitTag.enabled = false;
+		}
+		else {
+			submitTag.enabled = validate(tagNameV);
+		}
+	}	
+	private function addTagToList(tag:Object, type:String = 'global'):void {
+		algorithm.userTags.push(tag.id);
+	}
+	private function createTag(e:Event):void {
+		var value:String = tagName.text;
+		var l:uint = currentUserTags.length;
+		for(var i:uint = 0; i < l; i++) {
+			if(currentUserTags[i].name == Helper.trim(value)) {
+				msg.text = 'Υπάρχει ήδη ετικέτα με αυτό το όνομα';
+				return;
+			}
+		}
+		service.call('createUserTag', value);
+	}
+	public function get tagForm():EditTagForm {
+		if(!_tagForm) {
+			_tagForm = new EditTagForm()
+		}
+		return _tagForm;
+	} 
+	private function popUpTag(e:Event):void {
+		var index:uint = e.target.data;
+		var id:uint = currentUserTags[index].id;
+		var name:String = currentUserTags[index].name;
+		tagForm.setData(id, name);		
+		PopUpManager.addPopUp(tagForm, this, true);
+		PopUpManager.centerPopUp(tagForm);
+		tagForm.setFocus();
+	}
+	private function deleteAlgorithm(e:Event):void {
+			Alert.show('Είστε σίγουρος/η ότι θέλετε να διαγράψετε τον συγκεκριμένο αλγόριθμο;'
+			, 'Μήνυμα συστήματος', Alert.OK | Alert.NO, null, warnFunction);
+		}
+	private function warnFunction(e:CloseEvent):void {
+		if(e.detail == Alert.OK) {
+			service.call('deleteAlgorithm', algorithm.id);
+		}
+	}
+	]]>
+</mx:Script>
+	<mx:VBox paddingLeft="5">
+		<mx:HBox paddingLeft="0">
+			<mx:VBox>
+				<mx:Form defaultButton="{submit}" paddingBottom="0">
+					<mx:FormItem label="Όνομα Αλγορίθμου : ">
+			          <mx:TextInput id="pName" width="300" change="validateForm(event)" text="{algorithm.name}" />
+			       </mx:FormItem>
+			       <mx:FormItem label="Κώδικας : ">
+			          <mx:TextArea id="body" width="300" height="150" text="{algorithm.body}" verticalScrollPolicy="auto" change="validateForm(event)"/>
+			       </mx:FormItem>
+			       <mx:FormItem label="Σημειώσεις : ">
+			          <mx:TextArea id="notes" width="300" height="80" text="{algorithm.notes}" verticalScrollPolicy="auto" change="validateForm(event)"/>
+			       </mx:FormItem>
+			       <mx:FormItem label="Γενικές ετικέτες : ">
+			          <mx:TextArea id="globalTags" width="300" height="45" editable="false" verticalScrollPolicy="auto" change="validateForm(event)"/>
+			       </mx:FormItem>
+			       <mx:FormItem label="Οι ετικέτες μου : ">
+			          <mx:TextArea id="userTags" width="300" height="45" editable="false" verticalScrollPolicy="auto" change="validateForm(event)"/>
+			       </mx:FormItem>
+			       <mx:FormItem label="Δημιουργήθηκε : ">
+			          <mx:Label id="created" width="300" text="{algorithm.created}" />
+			       </mx:FormItem>
+			       <mx:FormItem label="Τελευταία τροποποίηση : ">
+			          <mx:Label id="updated" width="300" text="{algorithm.updated}"/>
+			       </mx:FormItem>
+			        <mx:HBox paddingLeft="120">
+			            <mx:Button id="submit" enabled="{isValid}" 
+			                label="Αποθήκευση" 
+			                click="save(event);"/>
+			                <mx:Button id="cSubmit" 
+			                label="Κλείσιμο" 
+			                click="hide();"/>
+			                <mx:Button id="deleteB" visible="{deleteVisible}" 
+			                label="Διαγραφή" 
+			                click="deleteAlgorithm(event);"/>
+			                <mx:Button id="loadB"
+			                label="Φόρτωση" 
+			                click="loadInEditor(event);" visible="{showLoad}"/>
+			        </mx:HBox>
+			    </mx:Form>		    		    
+			</mx:VBox>
+			<mx:VBox paddingLeft="20" horizontalAlign="left">
+				<mx:FormItem label="Γενικές ετικέτες : " paddingTop="15" horizontalAlign="right">		
+					<mx:Tile  id="tile1" width="320" paddingBottom="5" paddingLeft="5" paddingRight="5" borderStyle="solid">
+						<mx:Repeater id="rpgt" dataProvider="{currentGlobalTags}">
+	 						<mx:CheckBox id="gtcba"  maxWidth="150" label="{rpgt.currentItem.name}" change="resetTags('global')"/>
+						</mx:Repeater>    
+					</mx:Tile>
+		 		</mx:FormItem>
+		 		<mx:FormItem label="Οι ετικέτες μου: " paddingTop="15" horizontalAlign="right">			
+					<mx:Tile width="320" paddingBottom="5" paddingLeft="5" paddingRight="5" borderStyle="solid" minHeight="40">
+						<mx:Repeater id="rput" dataProvider="{currentUserTags}">
+						 	<mx:HBox verticalAlign="middle" width="150">
+								<mx:CheckBox maxWidth="130" id="utcba" label="{rput.currentItem.name}" change="resetTags('user')" />								
+								<mx:Button color="blue" width="12" height="12" label="+" click="popUpTag(event)" data="{rput.currentIndex}" toolTip="Επιλογές ετικέτας"/>	
+							</mx:HBox>							
+						</mx:Repeater>    
+					</mx:Tile>				 
+			 	</mx:FormItem>
+		 		
+		 			<mx:Form defaultButton="{submitTag}" paddingLeft="90">								
+		 				<mx:FormItem direction="horizontal">
+		          			<mx:TextInput id="tagName" width="150" change="validateTag(event)" />
+	    		       		<mx:Button id="submitTag" enabled="false" 
+	                	label="Δημιουργία νέας ετικέτας" 
+	                	click="createTag(event);"/>
+		        		</mx:FormItem>
+		    		</mx:Form>
+	    		
+			</mx:VBox>	
+		</mx:HBox>
+		<mx:Text id="msg" color="green" paddingLeft="350"/>
+	</mx:VBox>
+	<mx:StringValidator id="nameV" required="true" minLength="1" maxLength="255" source="{pName}" property="text" 
+		tooShortError="Το όνομα του αλγορίθμου δεν μπορεί να είναι κενό" 
+		tooLongError="Το όνομα του αλγορίθμου πρέπει να είναι μέχρι 255 χαρακτήρες"
+		 requiredFieldError="Υποχρεωτικό πεδίο"/>
+	<mx:StringValidator id="tagNameV" required="false" minLength="1" maxLength="255" source="{tagName}" property="text" 
+		tooShortError="Το όνομα της ετικέτας δεν μπορεί να είναι κενό" 
+		tooLongError="Το όνομα της ετικέτας πρέπει να είναι μέχρι 255 χαρακτήρες"/>
+</PForm>

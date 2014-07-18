@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute"
+				creationComplete="init()" showCloseButton="true" close="hide()">
+	<mx:Script>
+		<![CDATA[
+			import mx.core.Application;
+			import flash.events.KeyboardEvent;
+			import pseudoglossa.components.PService;
+			import mx.managers.PopUpManager;
+			import mx.validators.Validator;
+			import mx.validators.ValidationResult;
+			import mx.events.ValidationResultEvent;
+			import flash.ui.Keyboard;
+			import flash.display.DisplayObject;
+			import mx.core.Application;
+			import mx.collections.ArrayCollection;
+			
+			[Bindable]
+			protected var Settings:Object;
+			
+			
+			[Bindable]
+			public var app:Object = Application.application;
+			
+			public static var service:PService;
+			
+			[Bindable]
+			protected var isValid:Boolean;
+			
+			public var servicesInitialized:Boolean = false;
+			
+			protected var focussedFormControl:DisplayObject;
+			
+			protected function init():void {
+				Settings = app.settings;
+				if(!servicesInitialized) {
+					initServices();			
+				}
+				addEventListener(KeyboardEvent.KEY_UP, function(e:KeyboardEvent):void {
+					if(e.keyCode == Keyboard.ESCAPE) {
+						hide();
+					}
+				});
+			}
+			public function initServices():void {
+				if(!(app is Offline)) {
+					service.addResultListener('pLogout', function(e:Object):void {
+						hide();
+					});
+				}
+				servicesInitialized = true;
+			}
+			public function hide():void {
+				PopUpManager.removePopUp(this);
+			}
+			public static function isVisible(obj:DisplayObject):Boolean {
+				/*if (obj == null) return false;
+				if (obj is Application) return obj.visible;
+				return obj.visible && isVisible(obj.parent);*/
+				return obj.visible;
+			}
+			public function getColItemIndex(needle:String, col:ArrayCollection):Number
+			{
+				var arr:Array = col.toArray();
+				for(var i:uint; i < arr.length; i +=1) {
+					if(arr[i].data == needle) {
+						return i;
+					}
+				}
+				return -1;
+			}
+			
+			protected function validate(validator:Validator):Boolean {                
+				// Get a reference to the component that is the
+				// source of the validator.
+				var validatorSource:DisplayObject = validator.source as DisplayObject;
+				
+				// Suppress events if the current control being validated is not
+				// the currently focussed control on the form. This stops the user
+				// from receiving visual validation cues on other form controls.
+				var suppressEvents:Boolean = (validatorSource != focussedFormControl);
+				
+				// Carry out validation. Returns a ValidationResultEvent.
+				// Passing null for the first parameter makes the validator 
+				// use the property defined in the property tag of the
+				// <mx:Validator> tag.
+				var event:ValidationResultEvent = validator.validate(null, suppressEvents); 
+				
+				// Check if validation passed and return a boolean value accordingly.
+				var currentControlIsValid:Boolean = (event.type == ValidationResultEvent.VALID);
+				
+				// Update the isValid flag
+				isValid = isValid && currentControlIsValid;
+				
+				return currentControlIsValid;
+			}
+		]]>
+	</mx:Script>
+</mx:TitleWindow>

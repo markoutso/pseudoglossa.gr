@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TextArea xmlns:mx="http://www.adobe.com/2006/mxml" implements="pseudoglossa.IInput, pseudoglossa.IOutput" creationComplete="init()"
+verticalScrollPolicy="auto" horizontalScrollPolicy="auto" styleName="output" resize="resize()">
+<mx:Script>
+<![CDATA[
+	import mx.controls.Text;
+	import mx.controls.TextInput;
+	import mx.core.Application;
+	import mx.events.FlexEvent;
+	import mx.managers.PopUpManager;
+	
+	import pseudoglossa.ArrayStruct;
+	import pseudoglossa.DataStatement;
+	import pseudoglossa.Environment;
+	import pseudoglossa.Helper;
+	import pseudoglossa.LValue;
+	import pseudoglossa.PRuntimeError;
+	import pseudoglossa.ReadStatement;
+	import pseudoglossa.Statement;
+	import pseudoglossa.Variable;
+	
+	
+	private var highlightShape:Shape;
+	private var hti:TextInput;
+	private var metrics:TextLineMetrics;
+	public var env:Environment;
+	private var numVisibleLines:uint;
+	private var txt:String;
+	private var _inputLog:String;
+	private var htiListeners:Array;
+	
+	public var app:Application;
+	
+	public function init():void {
+		this.metrics = this.textField.getLineMetrics(0);
+		this.editable = false;
+		this.wordWrap = true;	
+		this.numVisibleLines = Math.floor((this.height - 4) / this.metrics.height);	
+		//this.height = this.numVisibleLines * this.metrics.height + 4;
+		this.hti = new TextInput();
+		this.hti.focusRect = false;
+		this.hti.styleName = 'hti';
+		this.hti.setStyle('themeColor', 0xffffff);
+		this.hti.setStyle('borderStyle', 'none');
+		this.hti.setStyle('backgroundColor', 0xfdff50);
+		this.hti.visible = false;
+		this.positionHti();
+		this.addChild(this.hti);
+		this.htiListeners = [];
+	}
+	private function addHtiListener(event:String, listener:Function):void
+	{
+		hti.addEventListener(event, listener, false, 0, true);
+		htiListeners.push({event: event, listener: listener});
+	}
+	private function clearHtiListeners():void
+	{
+		for each(var obj:Object in htiListeners) {
+			hti.removeEventListener(obj.event, obj.listener);
+		}
+		htiListeners = [];
+	}
+	protected function positionHti():void {
+		this.hti.width = this.width - 6;
+		this.hti.height = this.metrics.height + 2;
+		this.hti.x = 0;
+		this.hti.width = this.width - 5;
+		this.hti.x = 3;	
+	}
+	protected function updateMetrics():void {
+		this.metrics = this.textField.getLineMetrics(0);
+		this.numVisibleLines = Math.floor((this.height - 4) / this.metrics.height);
+		this.positionHti();
+	}
+	public function setFontSize(fontSize:uint):void {
+		this.setStyle('fontSize', fontSize);
+		this.hti.setStyle('fontSize', fontSize);
+		callLater(updateMetrics);
+	}
+	private function resize():void {
+		if(this.metrics)
+			this.numVisibleLines = Math.floor((this.height - 4) / this.metrics.height);
+		if(this.hti) {
+			this.hti.width = this.width - 6;
+			this.hti.y = this.inputFieldY();
+			this.scrollMax();
+		}
+			
+	}
+	private function reFocus(e:FocusEvent):void {
+		callLater(hti.setFocus);
+	}
+
+	public function stop():void {
+		this.hti.visible = false;
+		clearHtiListeners();
+	}
+	public function appendHtml(html:String):void {
+		this.htmlText += html;
+	}
+	public function setEnvironment(env:Environment):void {
+		this.env = env;
+	}
+	public function write(s:String):void {	
+		this.text += s;
+		if(s.charAt(s.length - 1) != ' ')
+			this.text += '\n';
+		this.scrollMax();
+	}
+	public function writeError(s:String):void {
+		this.htmlText += '<font color="#ff0000">'+ Helper.escapeCode(s) +'</font><br />';
+		this.scrollMax();
+	}
+	private function scrollMax():void {	
+		this.validateNow();
+		this.verticalScrollPosition = this.maxVerticalScrollPosition
+	}
+	public function print(s:String):void {
+		this.write(s);
+	}
+	public function results(s:String):void {
+		this.write(s);
+	}
+	public function clear():void {
+		this.htmlText = '<font color="#000000"> </font>';
+		this.setStyle('color','#000000');
+		this.htmlText = '';
+		this.text = '';
+		this.validateNow();
+		this._inputLog = '';
+	}
+	private function doInput(callback:Function):Function {
+		return function(e:Event):void {
+			var s:String = hti.text;
+			if(s != '') {
+				if(textField.numLines > numVisibleLines) {
+					text = text.substr(0, text.length - 1) + s + '\n';
+				} else { 
+					text += s + '\n';
+				}
+				hti.visible = false;
+				scrollMax();
+				clearHtiListeners();
+				_inputLog += s + '\r';
+				clearHtiListeners();
+				callback(s);
+			}
+		}
+	}
+	public function inputLog():String {
+		return this._inputLog;
+	}
+	public function read(callback:Function):void {
+		if(callback !== null) {
+			addHtiListener(FlexEvent.ENTER, doInput(callback));
+		}
+		if(this.text.charAt(text.length - 1) == ' ')
+			this.text += '\n';
+		if(this.textField.numLines >= this.numVisibleLines) {
+			this.text += '\n';
+		}
+		this.scrollMax();
+		this.showInputField();
+	}
+	public function inputData(callback:Function, lv:LValue):void
+	{
+		if(lv is ArrayStruct) {
+			var arr:ArrayStruct = lv as ArrayStruct
+			write(arr.name + ': πίνακας ' + arr.dimension + ' διαστάσεων');
+			write('Δώστε το πλήθος των στοιχείων ανά διάσταση π.χ. "10,4" για δισδιάστατο 10x4');
+			read(inputArrayStruct(arr, callback));
+		} else {
+			read(callback);
+		}
+	}
+	
+	public function inputArrayStruct(arr:ArrayStruct, callback:Function):Function
+	{
+		return function(text:String):void {
+			var dimtext:Array = text.replace('[', '').replace(']', '').split(','),
+				dim:Array;
+			if(dimtext.length != arr.dimension) {
+				env.handleRuntimeError(new PRuntimeError(PRuntimeError.ARRAY_DIMENSION_ERROR), arr.line);
+				return;
+			}
+			dim = dimtext.map(function(el:String, ...args):Number {
+				var n:Number = Number(el);
+				if(isFinite(n) && !isNaN(n)) {
+					if(n == 0) {
+						env.handleRuntimeError(new PRuntimeError(PRuntimeError.ARRAY_INDEX_ERROR), arr.line);
+						return -1;
+					}
+					return n;
+				} else {
+					env.handleRuntimeError(new PRuntimeError(PRuntimeError.ARRAY_INDEX_ERROR), arr.line);
+					return -1;
+				}
+			});
+			inputArrayValues(arr, dim, callback);
+		};
+	}
+	
+	private function inputArrayValues(arr:ArrayStruct, dim:Array, callback:Function):void
+	{
+		var index:uint = 0;
+		var o:Object = {};
+		var resumeReadElement:Function = function(value:String):void {
+			var pos:Array = ArrayStruct.restorePos(dim, index + 1);
+			o['[' + pos.join(',') + ']'] = value;
+			index += 1;
+			if(index == ArrayStruct.flattenDim(dim, dim)) {
+				index = 0;
+				clearHtiListeners();
+				callback(o);
+			} else {
+				//trace(index);
+				write('Δώστε την τιμή του στοιχείου ' + '[' + ArrayStruct.restorePos(dim, index + 1).join(',') + '] :' );
+				//FIXME: prevent possible stack overflow
+				read(resumeReadElement);
+			}
+		};
+		write('Δώστε την τιμή του στοιχείου ' + '[' + ArrayStruct.restorePos(dim, 1).join(',') + '] :' );
+		read(resumeReadElement);
+	}
+
+	private function inputFieldY():uint {
+		if(this.textField.numLines > this.numVisibleLines) {
+			return 2 + (this.numVisibleLines - 1) * this.metrics.height;
+		}
+		else {
+			return 2 + (this.textField.numLines -1) * this.metrics.height; 
+		}
+	}
+	private function showInputField():void {
+		addHtiListener(FocusEvent.FOCUS_OUT, this.reFocus);
+		this.hti.text = '';	
+		var y:uint;
+		this.hti.width = this.width - 6;
+		this.hti.y = this.inputFieldY();
+		this.hti.visible = true;
+		this.hti.setFocus();
+	}
+]]>
+</mx:Script>
+</mx:TextArea>

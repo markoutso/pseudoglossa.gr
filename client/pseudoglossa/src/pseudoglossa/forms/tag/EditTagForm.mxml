@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PForm xmlns="pseudoglossa.forms.*" xmlns:mx="http://www.adobe.com/2006/mxml" title="Επεξεργασία ετικέτας">
+<mx:Script>
+	<![CDATA[
+	import mx.events.CloseEvent;
+	import mx.controls.Alert;
+	import mx.rpc.events.ResultEvent;
+		protected var _tagId:uint;
+		[Bindable]
+		protected var _tagName:String;
+		
+		private var creationCompleted:Boolean = false;
+		override protected function init():void {
+			super.init();			
+			creationCompleted = true;
+			service.addResultListener('updateUserTag', function(e:ResultEvent):void {
+				if(e.result.success === false) {
+					msg.text = (e.result.messages as Array).join(',');
+				}
+				else {
+					hide();
+				}
+			});
+		}
+		
+		private function renameTag(e:Event):void {
+			service.call('updateUserTag', _tagId, tagName.text);
+			hide();
+		}
+		private function deleteTag(e:Event):void {
+			Alert.show('Είστε σίγουρος/η ότι θέλετε να διαγράψετε την ετικέτα "' 
+				+ _tagName + '";', 'Μήνυμα συστήματος', Alert.OK | Alert.NO, null, warnFunction);
+		}
+		private function warnFunction(e:CloseEvent):void {
+			if(e.detail == Alert.OK) {
+				service.call('deleteUserTag', _tagId);
+				hide();
+			}
+		}
+		public function setData(id:uint, name:String):void {
+			_tagId = id;
+			_tagName = name;
+		}
+		override public function setFocus():void {
+			msg.text = '';
+			tagName.setFocus();
+			tagName.setSelection(0, tagName.text.length);			
+		}
+		private function validateForm(e:Event):void {
+			renameB.enabled = validate(nameV);
+		}
+	]]>
+</mx:Script>
+	<mx:VBox>
+	 <mx:Form>
+        <mx:FormItem  direction="horizontal">
+            <mx:TextInput id="tagName" width="150" change="validateForm(event)" text="{_tagName}"/>
+            <mx:Button id="renameB" 
+                label="Μετονομασία" 
+                click="renameTag(event);"/>
+                <mx:Button id="deleteB" 
+                label="Διαγραφή Ετικέτας" 
+                click="deleteTag(event);"/>
+        </mx:FormItem>        
+    </mx:Form>   
+    <mx:Label id="msg" color="red"/>
+</mx:VBox> 
+<mx:StringValidator id="nameV" required="true" minLength="1" maxLength="255" source="{tagName}" property="text" 
+		tooShortError="Το όνομα της ετικέτας δεν μπορεί να είναι κενό" 
+		tooLongError="Το όνομα της ετικέτας πρέπει να είναι μέχρι 255 χαρακτήρες"
+		 requiredFieldError="Υποχρεωτικό πεδίο"/>
+</PForm>

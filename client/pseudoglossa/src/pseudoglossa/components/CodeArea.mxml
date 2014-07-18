@@ -1,0 +1,651 @@
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" implements="pseudoglossa.IExecutionArea" 
+	resize="resize()">
+<mx:Script xmlns:mx="http://www.adobe.com/2006/mxml">
+<![CDATA[
+	import flash.display.Shape;
+	import flash.events.MouseEvent;
+	import flash.text.TextLineMetrics;
+	import flash.ui.ContextMenuItem;
+	import flash.utils.*;
+	
+	import flight.commands.CommandHistory;
+	
+	import mx.controls.Alert;
+	import mx.controls.Label;
+	import mx.controls.textClasses.TextRange;
+	import mx.core.IUIComponent;
+	import mx.core.UIComponent;
+	import mx.events.FlexEvent;
+	import mx.events.ScrollEvent;
+	
+	import pseudoglossa.Character;
+	import pseudoglossa.Environment;
+	import pseudoglossa.Helper;
+	import pseudoglossa.LexicalTokenizer;
+	import pseudoglossa.PseudoThread;
+	import pseudoglossa.Spec;
+	import pseudoglossa.Token;
+	import pseudoglossa.TokenList;
+	import pseudoglossa.components.text.*;
+
+private static var replaceHash:Object;
+private static var greeklishPatterns:Array;
+
+//private var thread:PseudoThread;
+
+private var fontSize:uint;
+private var _numVisibleLines:uint;
+private var highlightsHash:Array;
+private var highlights:Array;
+private var breakpoints:Array;
+private var breakpointsHash:Array;
+private var metrics:TextLineMetrics;
+private var highlight:Boolean;
+private var ep:RegExp;
+private var creationCompleted:Boolean = false;
+
+protected var env:Environment;
+
+public var greeklish:Boolean = false;
+public var fullWidth:Boolean = false;
+public var decoration:Boolean = true;
+
+public var autoTabs:Boolean = false;
+private var _autoTabs:Boolean = false;
+
+private var caretLineShape:Shape;
+private var oldCaretLine:uint;
+
+private var asyncProcessing:Boolean = false;
+private var lt:LexicalTokenizer;
+
+private var thread:Object = {
+	pos : 0,
+	limit : 0,
+	chunkSize : 1300,
+	id : 0
+};
+public var substitutions:Object = {
+	'διω': 'div',
+	'μοδ': 'mod',
+	'<-': '←'
+};
+public var blockStartTokens:Object = {
+	'οσο':'τελοσ_επαναληψησ',
+	'αρχη_επαναληψης':'μεχρισ_οτου', 
+	'αν':'τελοσ_αν', 
+	'επιλεξε':'τελοσ_επιλογων', 
+	'περιπτωση':1, 
+	'αλλιωσ_αν':1, 
+	'για':'τελοσ_επαναληψησ', 
+	'αλλιωσ':1
+};
+public var blockEndTokens:Object = {
+	'τελοσ_επαναληψησ': {'οσο':1, 'για':1}, 
+	'τελοσ_αν':'αν', 
+	'μεχρισ_οτου':'αρχη_επαναληψησ', 
+	'τελοσ_επιλογων':'επιλεξε'
+};
+
+public function set code(text:String):void 
+{
+	this.textArea.text = text;
+}
+
+public function resize(e:Event = null):void 
+{
+	if(!this.creationCompleted) {
+		this.addEventListener(FlexEvent.CREATION_COMPLETE, function(e:Event):void {
+			positionElements();
+		});
+	}
+	else {
+		callLater(this.positionElements);
+		callLater(this.updateBreakPoints);
+		callLater(this.updateHighlights);
+		callLater(this.updateCaretLineHighlight);
+	}
+}
+public function init(event:FlexEvent = null):void 
+{	
+	this.creationCompleted = true;
+	this.highlightsHash = [];
+	this.highlights = [];
+	this.breakpointsHash = [];
+	this.breakpoints = [];		
+	this.metrics = this.textArea.getLineMetrics(0);
+	this.textArea.tf.alwaysShowSelection = true;	
+	this.oldCaretLine = 1;
+	this.lt = new LexicalTokenizer(this.textArea.text, LexicalTokenizer.MODE_HIGHLIGHT);
+	this.textArea.addEventListener(Event.CHANGE, function(e:Event):void {
+		clearHighlights();
+		updateBreakPoints();
+		changeCaretLineHighlight();		
+	});
+	this.textArea.addEventListener(KeyboardEvent.KEY_UP, function(e:KeyboardEvent):void {
+		changeCaretLineHighlight();
+	});
+	this.textArea.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):void {
+		changeCaretLineHighlight();
+	});		
+	this.textArea.addEventListener(KeyboardEvent.KEY_DOWN, function(e:KeyboardEvent):void {
+		if( (e.keyCode == Keyboard.DELETE && Character.isNewLine(textArea.text.charAt(textArea.tf.caretIndex))) ||  
+		    (e.keyCode == Keyboard.BACKSPACE && Character.isNewLine(textArea.text.charAt(textArea.tf.caretIndex-1))) 
+		  )
+			updateBreakPointLines('REDUCE');
+		else if(e.keyCode == Keyboard.ENTER)
+			updateBreakPointLines('ADD');
+	});
+	this.textArea.addEventListener(MouseEvent.DOUBLE_CLICK, function(e:Event):void {
+		callLater(textArea.setFocus);
+	});
+	if(fontSize) {
+		this.setFontSize(fontSize);
+	}	
+	this.positionElements();				
+	this.drawLineNumbers();
+	this.createCaretLineHighlight(1);
+	this.ep = /[a-z]+/i;		
+	this.textArea.addEventListener(ScrollEvent.SCROLL, scrollHandler);	
+	this.textArea.addEventListener(UndoTextFields.ACTION_TEXT_CHANGE, function(e:Event):void {
+		drawLineNumbers();	
+	});
+	if(decoration) {
+		this.linesLabel.addEventListener(MouseEvent.CLICK, bpClick);
+		this.bpLabel.addEventListener(MouseEvent.CLICK, bpClick);		
+		this.textArea.addEventListener(ChangeAreaEvent.CHANGE_AREA, changeAreaHandler);
+		if(autoTabs) {
+			setAutoTabs(autoTabs);
+		}
+	}	
+}
+
+private function newLineTabHandler(event:TextEvent):void
+{
+	if(event.text == '\r' || event.text == '\n') {
+		callLater(handleTabs);
+	}
+}
+	
+public function setAutoTabs(it:Boolean):void
+{
+	if(it && !_autoTabs) {
+		_autoTabs = true;
+		autoTabs = true;
+		textArea.addEventListener(TextEvent.TEXT_INPUT, newLineTabHandler);
+	} else if(!it && _autoTabs) {
+		_autoTabs = false;
+		autoTabs = false;
+		textArea.removeEventListener(TextEvent.TEXT_INPUT, newLineTabHandler);
+	}
+}
+private function changeAreaHandler(event:ChangeAreaEvent):void
+{
+	var span:Array = [textArea.firstCharAtLinePos(event.area[0]), textArea.lastCharAtLinePos(event.area[1])];
+	if(span[1] - span[0] > thread.chunkSize) {
+		thread.pos = span[0];
+		thread.limit = span[1];
+		new PseudoThread(systemManager, workerHi, this);		
+		//hi(textArea.firstCharAtLinePos(log.selection[0]), textArea.lastCharAtLinePos(log.selection[0] + log.inputText.length));
+		//thread.id = setInterval(workerHi, 500);
+	} else {
+		hi(span[0], span[1]);
+	}
+}
+private function handleTabs():void
+{
+	var idx:uint = textArea.tf.caretIndex;
+	if(	idx < 2 || textArea.text.charAt(idx - 2) == '\r') {
+		return;
+	}	
+	var count:int = textArea.countCharsFromStart('\t', idx - 1);
+	var word:String = textArea.firstWordAfterPos(textArea.tf.getLineOffset(textArea.lineAtPos(idx - 1)));
+	var normal:String = Spec.normaliseGreek(word.toLowerCase());
+	if(blockStartTokens.hasOwnProperty(normal)) {
+		count += 1;
+	}
+	if(count > 0) {
+		word = textArea.firstWordAfterPos(textArea.tf.getLineOffset(textArea.lineAtPos(idx - 1)));
+		normal = Spec.normaliseGreek(word.toLowerCase());
+		if(blockEndTokens.hasOwnProperty(normal)) {
+			var blockEndWord:String = normal;
+			var found:Boolean = false;			
+			var pos:int = idx - 1;
+			var lineIndex:int = textArea.lineAtPos(pos) - 1;
+			var lw:String;
+			var nestCount:int = 1;
+			while(!found && lineIndex > -1) {
+				pos = textArea.tf.getLineOffset(lineIndex);
+				word = textArea.firstWordAfterPos(pos);
+				normal = Spec.normaliseGreek(word.toLowerCase());
+				lw = textArea.lastWordAfterPos(pos);
+				if(Spec.normaliseGreek(lw.toLowerCase()) == blockEndWord) {
+					nestCount += 1;
+				}
+				if(blockStartTokens.hasOwnProperty(normal) && blockStartTokens[normal] == blockEndWord) {
+					count = textArea.countCharsFromStart('\t', pos);
+					nestCount -= 1;
+					if(nestCount == 0) {
+						found = true;
+					}
+				}
+				lineIndex -= 1;
+			}
+			if(found) {
+				pos = textArea.tf.getLineOffset(textArea.lineAtPos(idx - 1));
+				var et:int = textArea.countCharsFromStart('\t', pos);
+				if(et != count) {				
+					textArea.replaceText(pos, et, Helper.strRepeat('\t', count)); 
+				}				
+			}
+		}
+		if(textArea.countCharsFromStart('\t', textArea.tf.caretIndex) == 0) {
+			textArea.insertAtCaretPos(Helper.strRepeat('\t', count));	
+		}
+	}
+}
+
+private function hi(start:uint, end:uint):void
+{
+	//trace(textArea.text.slice(start, end));
+	lt.reset(textArea.text);
+	var tr:TextRange;
+	var t:Token;
+	var previousPos:uint = textArea.selectionBeginIndex;
+	var offset:uint = 0, sub:String;
+	for each(t in (new TokenList(this.lt)).getArea(start, end)) {
+		if(t.value != '@EOF' && t.value != '@EOL') {
+			tr = new TextRange(textArea, false, t.pos + offset, t.pos + offset + t.length);
+			if(substitutions.hasOwnProperty(t.key)) {
+				sub = substitutions[t.key];
+				tr.text = sub;
+				if(t.key.length != substitutions[t.key].length) {
+					offset += substitutions[t.key].length - t.key.length;
+				}
+			}
+			tr.color = tokenColor(t);
+		}
+	}
+	textArea.setSelection(previousPos + offset, previousPos + offset);
+}
+
+	
+private function getChunk():Array
+{
+	var chunk:Array = [thread.pos, thread.pos + thread.chunkSize]
+	if(thread.pos + thread.chunkSize >= thread.limit) {
+		thread.pos = thread.limit;
+		chunk[1] = thread.pos;
+	} else {
+		thread.pos  = thread.pos + thread.chunkSize;
+	}
+	return [textArea.firstCharAtLinePos(chunk[0]), textArea.lastCharAtLinePos(chunk[1])];
+}
+	
+private function workerHi(...params):Boolean
+{
+	var chunk:Array = getChunk();
+	hi(chunk[0], chunk[1]);
+	//Pseudoglossa.instance.system.print('thread from ' + textArea.lineAtPos(chunk[0]) + ' to ' + textArea.lineAtPos(chunk[1]) + '\n');
+	if(thread.pos == thread.limit) {
+		thread.pos = 0;
+		thread.limit = 0;
+		//clearInterval(thread.id);
+		return false;
+	} else {
+		return true;
+	}
+	
+}
+	
+/*private function substitute(key:String):String
+{
+	var sub:String = this.substitutions[key];
+	var diff:int;
+	diff = key.length - sub.length;
+	if(diff != 0) { //&& textArea.text.charAt(textArea.tf.caretIndex) == '\r'
+		textArea.setSelection(textArea.tf.caretIndex + diff, textArea.tf.caretIndex + diff);
+	}
+	return sub;
+}*/
+public function reset():void
+{
+	drawLineNumbers();
+	//hi(0, textArea.text.length);
+	textArea.dispatchEvent(new ChangeAreaEvent(ChangeAreaEvent.CHANGE_AREA, [0, textArea.text.length]));
+}
+protected function updateMetrics():void 
+{
+	this.metrics = this.textArea.tf.getLineMetrics(0);
+	this.positionElements();				
+	this.drawLineNumbers();
+}
+public function setFontFace(fontName:String):void 
+{	
+	textArea.setStyle('fontFamily',fontName);
+	linesLabel.setStyle('fontFamily',fontName);
+	callLater(updateMetrics);
+	this.scrollHandler();
+}
+public function setFontSize(fontSize:uint):void 
+{
+	if(this.creationCompleted) {
+		textArea.setStyle('fontSize', fontSize);
+		linesLabel.setStyle('fontSize', fontSize);
+		callLater(updateMetrics);
+		this.scrollHandler();	
+	}
+	else {
+		this.fontSize = fontSize;
+	}
+	
+}
+private function createCaretLineHighlight(lineIndex:uint = 0):void 
+{
+	if(!this.caretLineShape){
+		if(!lineIndex) {
+			lineIndex = this.textArea.lineAtCaretPos + 1;
+		}
+		this.caretLineShape = this.createCaretLineHighlightShape(lineIndex);
+		this.textArea.addChild(this.caretLineShape);
+	}
+}
+private function changeCaretLineHighlight():void 
+{
+	var l:uint = this.textArea.lineAtCaretPos + 1;
+	if(this.oldCaretLine != l) {
+		this.clearCaretLineHighlight();
+		this.createCaretLineHighlight();
+		this.oldCaretLine = l;
+	}
+}
+private function updateCaretLineHighlight():void
+{	 
+	if(this.caretLineShape) {
+		var a:Array = [];
+		a[this.oldCaretLine] = this.caretLineShape
+		this.updateShapes(a, this.textArea, this.createCaretLineHighlightShape);
+		for(var i:String in a) {
+			this.oldCaretLine = parseInt(i);
+			this.caretLineShape = a[i];
+		}
+	}
+}
+private function clearCaretLineHighlight():void
+{
+	if(this.caretLineShape) {
+		if(this.caretLineShape.parent == this.textArea)
+			this.textArea.removeChild(this.caretLineShape);
+		this.caretLineShape = null;
+		this.oldCaretLine = 0;
+	}
+}
+public function bpClick(e:MouseEvent):void 
+{
+	var lineIndex:uint = Math.ceil((e.localY + 2) / (this.metrics.height));
+	this.toggleBreakpoint(this.actualLine(lineIndex));
+}
+public function hasBreakpoint(lineIndex:uint):Boolean 
+{
+	return this.breakpointsHash.hasOwnProperty(lineIndex.toString());
+}
+
+public function toggleBreakpoint(lineIndex:uint):void 
+{
+	if(this.breakpointsHash.hasOwnProperty(lineIndex)) {
+		this.bpLabel.removeChild(this.breakpointsHash[lineIndex]);
+		this.breakpointsHash[lineIndex] = null;
+		delete this.breakpointsHash[lineIndex];
+	}
+	else if(lineIndex <= this.textArea.tf.bottomScrollV) {		
+		this.breakpointsHash[lineIndex] = createLineBreakPoint(lineIndex);
+		this.bpLabel.addChild(this.breakpointsHash[lineIndex]);
+	}
+}
+public function toggleCurrentLineBreakPoint():void 
+{
+	this.toggleBreakpoint(this.textArea.lineAtCaretPos + 1);
+}
+
+private function updateBreakPointLines(action:String):void
+{
+	var l:uint = this.textArea.lineAtCaretPos + 1;
+	var b:uint;
+	var t:Array = [];	
+	for(var s:String in this.breakpointsHash){
+		b = parseInt(s);		 
+		if(action == 'ADD'){
+			if( b > l || (b == l && ((Character.isNewLine(this.textArea.tf.text.charAt(this.textArea.tf.caretIndex - 1))) || (textArea.tf.caretIndex == 0)))){
+				b ++;			
+			}
+		}
+		else if(action == 'REDUCE' && b >= l){ 
+			b--;
+		}
+		if(parseInt(s) <= this.numLines) {
+			t[b] = this.breakpointsHash[s];
+		}
+		else {
+			if((this.breakpointsHash[s] as DisplayObject).parent == this.bpLabel){
+				this.bpLabel.removeChild(this.breakpointsHash[s]);
+			}	
+		}				
+	}
+	this.breakpointsHash = t;
+}
+
+private function createLineBreakPoint(lineIndex:uint):Shape 
+{	
+	return createBreakpointShape(10 , lineY(visibleLine(lineIndex)) + (this.metrics.height / 2), 3 * (Math.round(this.metrics.height / 14)));
+}
+private function createBreakpointShape(x:uint, y:uint, r:uint):Shape 
+{
+	var shape:Shape = new Shape();
+	shape.graphics.clear();
+	shape.graphics.beginFill(0xC9261F, 1);
+	shape.graphics.drawCircle(x, y, r);
+	return shape;
+}
+public function positionElements():void 
+{
+	var h:uint = this.height - 15;
+	var w:uint = this.width - 15;
+	if(fullWidth) {
+		w += 15;
+	}
+	this.linesLabel.height = h;			
+	this.bpLabel.height = h;
+	this.textArea.height = h;
+	this._numVisibleLines = Math.floor((this.textArea.height - 4) / this.metrics.height);	
+	this.bpLabel.x = 0;
+	this.bpLabel.width = 6;
+	this.linesLabel.x = this.bpLabel.width;
+	this.linesLabel.width = 2.3 * this.textArea.getStyle('fontSize');
+	this.linesLabel.y = 1	
+	this.textArea.x = this.linesLabel.width + this.bpLabel.width;
+	this.textArea.width = w - this.linesLabel.width - this.bpLabel.width;
+}
+public function setEnvironment(env:Environment):void 
+{
+	this.env = env;
+}
+public function showError(e:Error, line:uint):void 
+{
+	this.clearCaretLineHighlight();
+	this.executeLine(line);
+}
+public function insertAtCaretPos(s:String):void 
+{
+	this.textArea.insertAtCaretPos(s);
+}
+private function stopFunction(e:Event = null):void 
+{
+	this.stopExecution();	
+	this.env.stop();
+	this.textArea.removeEventListener(Event.CHANGE, stopFunction);	
+}
+public function startExecution():void 
+{
+	this.textArea.addEventListener(Event.CHANGE, stopFunction);
+	this.clearCaretLineHighlight();
+}
+public function stopExecution():void 
+{
+	this.clearHighlights();	
+	this.textArea.removeEventListener(Event.CHANGE, stopFunction);	
+}
+public function get code():String
+{
+	return this.textArea.tf.text;
+}
+
+public function scrollHandler(event:ScrollEvent = null):void 
+{
+	this.drawLineNumbers();
+	this.updateBreakPoints();
+	this.updateHighlights();
+	this.updateCaretLineHighlight();
+}
+private function drawLineNumbers():void 
+{			
+	this.linesLabel.text = '';
+	for(var i:uint = this.textArea.tf.scrollV; i <= this.textArea.tf.bottomScrollV; i += 1)
+		this.linesLabel.text += i.toString() + '\n';
+}
+private function spaces(start:Token, end:Token, exportTabs:Boolean):String 
+{
+	var t:String = this.textArea.tf.text.substring(start.pos + start.length, end.pos); 	
+	if(end.pos - (start.pos + start.length) > 0)
+		if(exportTabs)
+			return '<span>' + t.replace('\t', '&nbsp;&nbsp;&nbsp;').replace(' ', '&nbsp;') + '</span>'; 
+		else
+			return t;
+	else 
+		return '';
+}
+	
+public function tokenColor(token:Token):String
+{
+	if(token.type == 'KEYWORD') return '#000088';
+	else if(token.type == 'OPERATOR')
+		if(token.specKey.isWord) return '#000088'
+		else return '#990000';
+	else if(token.type == 'SYMBOL') return '#990000';
+	else if(token.type == 'STANDARD_FUNCTION') return '#000088';
+	else if(token.type == 'NAME') return '#000000'
+	else if(token.type == 'BOOLEAN' || token.type == 'NUMBER' || token.type == 'REAL') return '#660066'
+	else if(token.type == 'STRING') return '#008800';
+	else if(token.type == 'COMMENT') return '#AA9B8F'
+	else if(token.type == 'UNKNOWN' || token.type == 'UNFINISHED_STRING') return '#FF0000';	
+	else return '#000000';
+}
+public function colorHtml(color:String, text:String):String 
+{
+	return '<font color="#'+color+'">'+text+'</font>';	
+}
+/*
+public function escapeCode(text:String):String {
+	return text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+*/
+public function get numVisibleLines():uint
+{
+	return this._numVisibleLines;
+}
+
+public function scrollToLine(lineIndex:uint):void
+{
+	if(!lineIsVisible(lineIndex)) this.textArea.tf.scrollV = lineIndex;	 
+}
+public function lineIsVisible(lineIndex:uint):Boolean {
+	return lineIndex >= this.textArea.tf.scrollV && lineIndex <= this.textArea.tf.bottomScrollV;
+}
+public function get numLines():uint 
+{
+	return this.textArea.numLines;
+}
+public function clearHighlights():void 
+{
+	for(var k:String in this.highlightsHash) 
+		if((this.highlightsHash[k] as DisplayObject).parent == this.textArea)
+			this.textArea.removeChild(this.highlightsHash[k]);
+	this.highlightsHash = [];
+}	
+public function updateBreakPoints():void
+{
+	this.updateShapes(this.breakpointsHash, this.bpLabel, this.createLineBreakPoint);
+}
+public function updateHighlights():void 
+{
+	this.updateShapes(this.highlightsHash, this.textArea, this.createLineHighlight);
+}
+public function updateShapes(arr:Array, parent:DisplayObjectContainer, createShape:Function):void 
+{
+	var t:Array = [];
+	for(var i:String in arr) {
+		if(lineIsVisible(parseInt(i))) {
+			if((arr[i] as DisplayObject).parent == parent){			
+				parent.removeChild(arr[i]);
+			}
+			var s:Shape;
+			s = createShape(parseInt(i));
+			parent.addChild(s);
+			arr[i] = s;
+		}
+		else if((arr[i] as DisplayObject).parent == parent) {
+			parent.removeChild(arr[i]);			
+		}
+	}					
+}
+public function highlightLine(lineIndex:uint):Shape 
+{
+	var rect:Shape = this.createLineHighlight(lineIndex);	
+	this.highlightsHash[lineIndex] = rect;
+	this.textArea.addChild(rect);
+	return rect;
+}
+
+public function executeLine(lineIndex:uint):void
+{
+	this.clearHighlights();
+	this.scrollToLine(lineIndex);
+	this.highlightLine(lineIndex);
+}
+private function createLineHighlight(lineIndex:uint):Shape
+{
+	return this.createRect(2,  lineY(visibleLine(lineIndex)) - this.metrics.leading / 2, this.textArea.width - 20, this.metrics.height, 0xF7FF2A, .35);
+}
+private function createCaretLineHighlightShape(lineIndex:uint):Shape {
+	return this.createRect(2,  lineY(visibleLine(lineIndex)) - this.metrics.leading / 2, this.textArea.width - 20, this.metrics.height, 0xE8F2FE, .31);
+}
+private function actualLine(lineIndex:uint):uint
+{
+	return lineIndex + this.textArea.verticalScrollPosition;
+}
+private function visibleLine(lineIndex:uint):uint
+{
+	return lineIndex - this.textArea.verticalScrollPosition;
+}
+//visible lines only
+private function lineY(lineIndex:uint):uint
+{	
+	return 2 + (lineIndex - 1) * this.metrics.height;
+}
+private function createRect(x:uint, y:uint, width:uint, height:uint, color:Number, opacity:Number):Shape 
+{
+	var rect:Shape = new Shape();
+	rect.graphics.clear();
+	rect.graphics.beginFill(color, opacity);
+	rect.graphics.drawRect(x, y, width, height);
+	return rect;	
+}
+]]>
+</mx:Script>
+<mx:Label xmlns:mx="http://www.adobe.com/2006/mxml" id="linesLabel" styleName="lines" toolTip="Εναλλαγή Σημείου Διακοπής" />	
+<mx:Label xmlns:mx="http://www.adobe.com/2006/mxml" id="bpLabel" toolTip="Εναλλαγή Σημείου Διακοπής">	
+</mx:Label>
+<custom:ExtTextArea id="textArea" xmlns:custom="pseudoglossa.components.text.*" 
+	verticalScrollPolicy="on" creationComplete="init()" horizontalScrollPolicy="auto"
+	 doubleClickEnabled="true" styleName="code" width="100%" wordWrap="false">
+</custom:ExtTextArea>
+</mx:Canvas>

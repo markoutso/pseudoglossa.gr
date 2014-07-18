@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PForm xmlns="pseudoglossa.forms.*" xmlns:mx="http://www.adobe.com/2006/mxml" title="Εξερεύνηση Αλγορίθμων">
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			import mx.controls.CheckBox;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import pseudoglossa.Helper;
+			import pseudoglossa.Obj;
+			import pseudoglossa.components.PService;
+			import pseudoglossa.forms.PaginatorEvent;
+			import pseudoglossa.forms.algorithm.SaveAlgorithmForm;
+			import pseudoglossa.forms.tag.EditTagForm;
+			
+			[Bindable]
+			private var currentGlobalTags:Array;
+			
+			[Bindable]
+			private var currentUserTags:Array;
+			
+			[Bindable]
+			public var algorithms:Array;
+			
+			[Bindable]
+			private var totalItemCount:uint;
+			[Bindable]
+			private var currentPage:uint;
+			[Bindable]
+			private var pageArr:Array;
+			[Bindable] 
+			private var numPages:uint;
+			[Bindable] 
+			private var itemsPerPage:uint = 5;
+			
+			[Bindable]
+			private var globalTags:Array;
+			[Bindable]
+			private var userTags:Array;
+			
+			private var sortField:String = 'name'
+			private var sortType:String = 'ASC';
+			
+			/*
+			private var userTagPos:Object;
+			private var globalTagPos:Object;
+			*/
+			
+			private var _tagForm:EditTagForm;
+			private var _sortForm:SortForm;
+			
+			//private var saveAlgorithmForm:SaveAlgorithmForm;
+			
+			private var currentAlgorithmId:uint;
+			
+			public function changeSort(field:String, type:String):void
+			{
+				sortField = field;
+				sortType = type;
+			}
+			override protected function init():void {
+				super.init();
+				globalTags = [];
+				userTags = [];
+				paginator.addEventListener(PaginatorEvent.PAGE_CLICKED, function(e:PaginatorEvent):void {
+					currentPage = e.pageClicked;
+					refreshData();
+				});
+				changeSort(Settings.SORT_FIELD, Settings.SORT_TYPE);
+				sortForm.addEventListener('sortChanged', function(e:Event):void {
+					if(sortField != sortForm.sortField || sortType != sortForm.sortType) {
+						sortField = sortForm.sortField;
+						sortType = sortForm.sortType;
+						currentPage = 1;
+						refreshData();
+					}
+				});		
+			}			
+			override public function setFocus():void {
+				super.setFocus();
+				changeSort(Settings.SORT_FIELD, Settings.SORT_TYPE);
+				if(!algorithms) {
+					service.call('getUserAlgorithms', sortField + ' ' + sortType);
+				} else {
+					var i:uint, pos:uint;
+					for(i = 0; i < globalTags.length; i += 1) {
+						pos = Pseudoglossa.instance.globalTagPos[globalTags[i]].pos;
+						gtcba[pos].selected = true;
+					}
+					for(i = 0; i < userTags.length; i += 1) {
+						pos = Pseudoglossa.instance.userTagPos[userTags[i]].pos;
+						utcba[pos].selected = true;
+					}
+				}
+			}
+			override public function initServices():void {				
+				super.initServices();
+				currentGlobalTags = Pseudoglossa.instance.currentGlobalTags;
+				currentUserTags = Pseudoglossa.instance.currentUserTags;
+				service.addResultListener('getGlobalTags', function(e:ResultEvent):void {
+					if(e.result.success === true) {
+						currentGlobalTags = Pseudoglossa.instance.currentGlobalTags
+					}
+				});
+				service.addResultListener('getUserTags', function(e:ResultEvent):void {
+					if(e.result.success === true) {
+						currentUserTags = Pseudoglossa.instance.currentUserTags;
+					}
+				})
+				var obj:BrowseAlgorithmsForm = this;
+				service.addResultListener('getUserAlgorithms', function(e:ResultEvent):void {
+					if(e.result.success === true) {						
+						algorithms = e.result.items as Array;
+						totalItemCount = e.result.totalItemCount as Number;
+						paginator.totalItemCount = totalItemCount;
+						paginator.currentPageNumber = e.result.currentPageNumber as Number;
+						paginator.itemsPerPage = itemsPerPage;
+						paginator.render();
+						PopUpManager.centerPopUp(obj);		
+					}
+				});
+				
+				service.addResultListener('updateUserTag', onUpdateUserTag);
+				service.addResultListener('createUserTag', onUpdateUserTag);
+				service.addResultListener('deleteUserTag', onUpdateUserTag);
+			}
+			private function onUpdateUserTag(e:ResultEvent):void {
+				if(e.result.success === true) {
+					currentUserTags = Pseudoglossa.instance.currentUserTags;
+					callLater(function():void {
+						var selected:Array = getSelectedTags('user');
+						var pos:uint;
+						for(var i:uint = 0; i < selected.length; i++) {
+							pos = Pseudoglossa.instance.userTagPos[selected[i]].pos;
+							utcba[pos].selected = true;
+						}	
+						refreshData();
+					});
+				}
+			}
+			private function getSelectedTags(type:String):Array {
+				var checkArr:Array;
+				var ret:Array = [];
+				var currentArr:Array;
+				if(type == 'global') {
+					checkArr = gtcba;
+					currentArr = currentGlobalTags;
+				}
+				else {
+					checkArr = utcba;
+					currentArr = currentUserTags;
+				}
+				if(checkArr) { // zero userTags
+					var cb:CheckBox;
+					for(var i:uint = 0; i < checkArr.length; i++) {
+						cb = checkArr[i] as CheckBox;			
+						if(cb.selected) {
+							ret.push(currentArr[i].id);
+						}
+					}
+				}
+				return ret;
+			}
+			public function refreshData(e:Event = null):void {
+				globalTags = getSelectedTags('global');
+				userTags = getSelectedTags('user');
+				service.call('getUserAlgorithms', sortField + ' ' + sortType, currentPage, itemsPerPage, userTags, globalTags);
+			}
+			private function tagClick(e:Event = null):void {
+				currentPage = 1;
+				refreshData();
+			}
+			public function get tagForm():EditTagForm {
+				if(!_tagForm) {
+					_tagForm = new EditTagForm()
+				}
+				return _tagForm;
+			} 
+			private function popUpTag(e:Event):void {
+				var index:uint = e.target.data;
+				var id:uint = currentUserTags[index].id;
+				var name:String = currentUserTags[index].name;
+				tagForm.setData(id, name);		
+				PopUpManager.addPopUp(tagForm, this, true);
+				PopUpManager.centerPopUp(tagForm);
+				tagForm.setFocus();
+			}
+			private function deleteAlgorithm(e:Event):void {
+					var item:Object = e.target.getRepeaterItem();
+					currentAlgorithmId = item.id;
+					Alert.show('Είστε σίγουρος/η ότι θέλετε να διαγράψετε τον αλγόριθμο ' + 
+							item.name + ' ;'
+					, 'Μήνυμα συστήματος', Alert.OK | Alert.NO, null, warnFunction);
+				}
+			private function warnFunction(e:CloseEvent):void {
+				if(e.detail == Alert.OK) {
+					service.call('deleteAlgorithm', currentAlgorithmId);
+					refreshData();
+				}
+			}	
+
+			private function loadAlgorithm(e:Event):void {
+				var item:Object = e.target.getRepeaterItem();
+				Pseudoglossa.instance.saveAlgorithmForm.loadAlgorithm(item.id);
+				//saveAlgorithmForm.setBrowseForm(this);
+				PopUpManager.addPopUp(Pseudoglossa.instance.saveAlgorithmForm, Pseudoglossa.instance, false);
+				PopUpManager.centerPopUp(Pseudoglossa.instance.saveAlgorithmForm);
+				Pseudoglossa.instance.saveAlgorithmForm.setFocus();
+			}
+			private function loadInEditor(e:Event):void {
+				var item:Object = e.target.getRepeaterItem();
+				Pseudoglossa.instance.loadAlgorithm(item.id);
+				service.addResultListener('getAlgorithm', function():void {
+					setTimeout(hide, 400);  
+				}, PService.LISTEN_ONCE);
+			}
+			
+			private function getTagName(type:String, id:uint):String {
+				var hash:Object;
+				if(type == 'global') {
+					hash = Pseudoglossa.instance.globalTagPos;
+				}
+				else {
+					hash = Pseudoglossa.instance.userTagPos;
+				}
+				return hash[id].name;
+			}
+			
+			private function popSortForm(e:Event = null):void {
+				PopUpManager.addPopUp(sortForm, this, true);
+				PopUpManager.centerPopUp(sortForm);
+				sortForm.setFocus();
+				sortForm.setSelection(sortField, sortType);
+			}
+			public function get sortForm():SortForm {
+				if(!_sortForm) {
+					_sortForm = new SortForm()
+				}
+				return _sortForm;
+			} 
+		]]>
+	</mx:Script>
+	
+	<mx:HBox width="100%">
+		<mx:VBox paddingTop="10" paddingLeft="5" width="100%">
+			<mx:HBox>
+				<mx:Label textAlign="left" opaqueBackground="0xE0EAF1" id="results" text="{'Βρέθηκαν : ' +  String(totalItemCount) + ' αλγόριθμοι'}" width="100%" />
+				<mx:LinkButton label="Επιλογές ταξινόμησης" click="popSortForm(event)" />			
+			</mx:HBox>
+						
+				<mx:Repeater id="rpalg" dataProvider="{algorithms}">
+					<mx:HBox borderThickness="1" borderStyle="solid" borderSides="bottom" paddingBottom="2">
+						<mx:VBox>
+							<mx:Label text="{Helper.formatDate(rpalg.currentItem.created)}" color="0x8E8E8E" />		
+						</mx:VBox>
+						<mx:VBox width="400">
+							<mx:LinkButton label="{rpalg.currentItem.name}" textAlign="left" color="0x1259C7"  click="{loadAlgorithm(event)}" />
+								<mx:Tile paddingLeft="4" paddingRight="0" width="100%" tileWidth="100">								
+									<mx:Repeater id="rpalggt" dataProvider="{rpalg.currentItem.globalTags}">
+										<mx:Label textAlign="center" opaqueBackground="0xE0EAF1" color="blue" text="{getTagName('global', rpalggt.currentItem)}" width="100%" />
+									</mx:Repeater>	
+									<mx:Repeater id="rpalgut" dataProvider="{rpalg.currentItem.userTags}">
+										<mx:Label textAlign="center" opaqueBackground="0xC7C9CA" color="magenta" text="{getTagName('user', rpalgut.currentItem)}" width="100%" />
+									</mx:Repeater>		
+								</mx:Tile> 
+								<mx:HBox>
+									<mx:LinkButton label="Φόρτωση" textAlign="left" click="{loadInEditor(event)}" />
+									<mx:LinkButton label="Επεξεργασία" textAlign="left" click="{loadAlgorithm(event)}" />
+									<mx:LinkButton label="Διαγραφή" textAlign="left" click="{deleteAlgorithm(event)}"/>
+								</mx:HBox>					
+						</mx:VBox>
+					</mx:HBox> 
+				</mx:Repeater>
+			<mx:HBox paddingTop="5" paddingBottom="5">
+				<mx:Label id="pageLabel" paddingTop="3" fontWeight="bold" text="Σελίδες : " color="black" visible="{paginator.pageCount > 1}"/>
+				<custom:Paginator id="paginator" xmlns:custom="pseudoglossa.forms.*" itemsPerPage="{itemsPerPage}" totalItemCount="{totalItemCount}" visibleLinks="8" />	
+			</mx:HBox>			
+		</mx:VBox>
+		<mx:VBox paddingTop="10" paddingLeft="5">
+			<mx:FormItem label="Γενικές ετικέτες : " horizontalAlign="right">		
+				<mx:Tile  id="tile1" width="320" paddingBottom="5" paddingLeft="5" paddingRight="5" borderStyle="solid">
+					<mx:Repeater id="rpgt" dataProvider="{currentGlobalTags}">
+	 					<mx:CheckBox id="gtcba" data="{rpgt.currentItem.id}"  maxWidth="150" label="{rpgt.currentItem.name}" change="tagClick(event)"/>
+					</mx:Repeater>    
+				</mx:Tile>
+		 	</mx:FormItem>
+		 	<mx:FormItem label="Οι ετικέτες μου :  " horizontalAlign="right">			
+				<mx:Tile width="320" borderStyle="solid" minHeight="40" paddingBottom="5" paddingLeft="5" paddingRight="5">
+					<mx:Repeater id="rput" dataProvider="{currentUserTags}">
+					 	<mx:HBox verticalAlign="middle" width="150">
+							<mx:CheckBox maxWidth="130" id="utcba"  label="{rput.currentItem.name}" change="tagClick(event)" />
+							<mx:Button color="blue" width="12" height="12" label="+" click="popUpTag(event)" data="{rput.currentIndex}" toolTip="Επιλογές ετικέτας"/>	
+						</mx:HBox>
+					</mx:Repeater>
+				</mx:Tile>
+			</mx:FormItem>
+		</mx:VBox>
+	</mx:HBox>
+</PForm>

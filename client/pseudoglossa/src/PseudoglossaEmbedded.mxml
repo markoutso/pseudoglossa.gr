@@ -1,0 +1,422 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute"
+				xmlns:custom="pseudoglossa.components.*" width="100%" height="100%" applicationComplete="init()" >
+	<mx:Style source="../assets/main.css" />
+	
+	<mx:Script>
+		<![CDATA[
+			import pseudoglossa.Helper;			
+			import flash.display.DisplayObject;
+			import flash.display.StageDisplayState;
+			import flash.events.KeyboardEvent;
+			import flash.events.TextEvent;
+			import flash.net.navigateToURL;
+			import flash.system.Capabilities;
+			import flash.system.System;
+			import flash.ui.Keyboard;
+			import pseudoglossa.components.text.ChangeAreaEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.containers.TitleWindow;
+			import mx.controls.Alert;
+			import mx.controls.Button;
+			import mx.controls.buttonBarClasses.ButtonBarButton;
+			import mx.controls.tabBarClasses.Tab;
+			import mx.events.ItemClickEvent;
+			import mx.managers.PopUpManager;
+			
+			import pseudoglossa.Environment;
+			import pseudoglossa.Operator;
+			import pseudoglossa.PRuntimeError;
+			import pseudoglossa.PSyntaxError;
+			import pseudoglossa.components.About;
+			import pseudoglossa.components.ErrorDialog;
+			import pseudoglossa.components.InputFile;
+			import pseudoglossa.components.SearchDialog;
+			import pseudoglossa.forms.SettingsForm;
+			import pseudoglossa.models.Algorithm;
+			
+			[Bindable] 
+			public var isUserLogged:Boolean = false;
+			
+			[Bindable]
+			public var currentAlgorithm:Algorithm;
+				
+			//[Bindable]
+			public static var instance:PseudoglossaEmbedded;
+			
+			public var loginActions:Array;
+			public var sessionId:String;
+			private var clipboard:String;
+			public var env:Environment;
+			public var delayToggle:Boolean;
+			private var dispState:String;
+			private var buttons:Array;
+			public var saved:Boolean;
+			public var newCount:uint;
+						
+			[Bindable]
+			public var isLinux:Boolean;
+			
+			[Bindable]
+			public var isLocalhost:Boolean;
+			
+			[Bindable]
+			public var ac:ArrayCollection;
+			
+			[Bindable]
+			public var paddingLeft:uint;
+			
+			[Bindable]
+			public var settings:Object = {
+				FONT_SIZE : 14,
+				STEP_DELAY : 200,
+				INSERT_TABS : true,
+				REAL_SHOW_DIGITS : 12,
+				REAL_PRECISION : 12,
+				PREFER_NUMBERS_IN_COMPARISON : true,
+				INSERT_SPACE : false,
+				SORT_FIELD : 'created',
+				SORT_TYPE : 'ASC',
+				USE_INPUT_FILE : false,
+				LOG_INPUT:false,
+				
+				setSort : function(field:String, type:String):void 
+				{
+					this['SORT_FIELD'] = field;
+					this['SORT_TYPE'] = type;
+				},
+				
+				setFontSize : function(fontSize:uint):void
+				{
+					codeArea.setFontSize(fontSize);
+					inputFile.setFontSize(fontSize);
+					system.setFontSize(fontSize);
+					callLater(function():void {
+						paddingLeft = codeArea.textArea.x;
+						setMainBarTabPadding();
+					});
+					this['FONT_SIZE'] = fontSize;
+				},  
+
+				
+				setDelay : function(delay:uint):void
+				{
+					if(env.delay != 0) {
+						env.delay = delay;
+					}
+					this['STEP_DELAY'] = delay;
+				},
+				setInsertTabs : function(insertTabs:Boolean):void 
+				{
+					this['INSERT_TABS'] = insertTabs;
+					codeArea.setAutoTabs(insertTabs);
+				},
+				setInsertSpace : function(insertSpace:Boolean):void
+				{
+					this['INSERT_SPACE'] = insertSpace;
+				},
+				setInputFile : function(useInputFile:Boolean):void
+				{
+					this['USE_INPUT_FILE'] = useInputFile;
+					if(useInputFile) {
+						env.setSystemIn(inputFile);
+					} else {
+						env.setSystemIn(system);
+					}
+					
+				},
+				setLogInput : function(logInput:Boolean):void
+				{
+					this['LOG_INPUT'] = logInput;
+				},
+
+				defaultSettings : {
+					FONT_SIZE : 14,
+					INSERT_TABS : true,
+					STEP_DELAY : 200,
+					INSERT_SPACE:true,
+					SORT_FIELD : 'created',
+					SORT_TYPE : 'DESC',
+					USE_INPUT_FILE : false,
+					LOG_INPUT:false
+				},
+				//when a new setting is introduced, stored json does not correspond with settings object
+				mergeDefault : function(obj:Object):void
+				{
+					
+				}
+			};
+			
+			public var externalInterface:Object = {
+				callbacks : {
+					loadAlgorithm : function(code:String, input:String):void
+					{
+						mapAlgorithm({body:code, inputFile:input});
+					},
+					useInputFile : function(useInputFile:Boolean):void
+					{
+						settings.setInputFile(useInputFile);
+					},
+					run : function():Boolean 
+					{
+						if(!env.start(codeArea.code)) {
+							return false;
+						}
+						env.run();
+						return true;	
+					},
+					getCode : function():String {
+						return codeArea.code;
+					},
+					getError : function():Object 
+					{
+						return env.lastError;
+					},
+					addCompletedCallback : function(func:String):void
+					{
+						externalInterface.completedCallbacks[func] = function():void {
+							ExternalInterface.call(func);				
+						};
+						env.addStopListener(externalInterface.completedCallbacks[func]);
+					},
+					removeCompletedCallback : function(func:String):void
+					{
+						env.removeStopListener(externalInterface.completedCallbacks[func]);
+						delete externalInterface.completedCallbacks[func];
+					},
+					getResults : function():String
+					{
+						return env.outputLog;	
+					}
+				},
+				completedCallbacks : {},
+				init : function():void 
+				{
+					Security.allowDomain('*');
+					for(var name:String in this.callbacks) {
+						ExternalInterface.addCallback(name, this.callbacks[name]);	
+					}
+					//ExternalInterface.call('ps.init');
+					ExternalInterface.call('ps.init', PseudoglossaEmbedded.instance.parameters.id);
+				}
+
+			};
+			
+			
+			public static function getInstance():PseudoglossaEmbedded{
+				return instance;
+			}
+						
+			public function mapAlgorithm(obj:Object):void {
+				currentAlgorithm.map(obj);
+				codeArea.textArea.text = obj.body;
+				inputFile.textArea.text = obj.inputFile;
+				callLater(function():void {
+					codeArea.reset();
+				});
+				callLater(function():void {
+					inputFile.reset();
+				});
+			}
+
+			private function initButtons():void {
+				buttons = [];
+				toolBox.getChildren().filter(function(el:Object, ...rest:Array):Boolean {
+					return el is ButtonBar;
+				}).forEach(function(bb:ButtonBar, ...rest:Array):void {
+					(bb.dataProvider as ViewStack).getChildren().forEach(function(c:Canvas, i:uint, arr:Array):void {
+						buttons[c.id] = bb.getChildAt(i) as ButtonBarButton; 
+					});
+				});
+			}
+			private function getButton(id:String):ButtonBarButton {
+				var bb:ButtonBarButton = getChildByName(id) as ButtonBarButton;
+				return buttons[id];
+			}
+				
+			private function hideButton(name:String, includeInLayout:Boolean = false):void {
+				getButton(name).visible = false;
+				getButton(name).includeInLayout = includeInLayout;	
+			}
+			private function showButton(name:String):void {
+				getButton(name).visible = true;
+				getButton(name).includeInLayout = true;
+			}
+			private function setMainBarTabPadding():void {
+				var tab:Tab = mainBar.getTabAt(0) as Tab;
+				tab.x = paddingLeft;
+				var width:uint = tab.width;
+				tab = mainBar.getTabAt(1) as Tab;
+				tab.x = paddingLeft + width;
+			}
+			private function init():void {	
+				Alert.okLabel = 'Ναι';
+				Alert.noLabel = 'Όχι'
+				Alert.cancelLabel = 'Άκυρο';	
+				newCount = 0;
+				instance = this;
+				isLocalhost = url.indexOf('localhost') != -1;	
+				isUserLogged = false;
+				sessionId = Application.application.parameters.sessionId;
+				paddingLeft = codeArea.textArea.x;
+				clipboard = '';
+				env = new Environment(this, system, system, codeArea);				
+				env.ended = true;	
+				delayToggle = false;
+				if(Capabilities.os.match('Linux')) {
+					isLinux = true;	
+				} else {
+					isLinux = false;
+				}
+				initButtons();
+				addEventListener(KeyboardEvent.KEY_UP, function(e:KeyboardEvent):void {
+					if(e.keyCode == Keyboard.F5) {
+						run('RUN');
+					} else if(e.keyCode == Keyboard.F6){
+						run('STEP_IN');
+					}  else if(e.keyCode == Keyboard.F7){
+						run('STEP_NEXT');
+					} else if(e.keyCode == Keyboard.F8){
+						run('STEP_OUT');
+					} else if(e.keyCode == Keyboard.F9){
+						codeArea.toggleCurrentLineBreakPoint();
+					}					
+				});
+				setMainBarTabPadding();
+				clearAlgorithm(false);
+				Helper.setSettings(settings);
+				externalInterface.init();				
+				codeArea.code = this.parameters.code;
+				settings.setFontSize(this.parameters.fontSize);
+				inputFile.code = this.parameters.input;
+				mapAlgorithm({body:this.parameters.code, inputFile:this.parameters.input});
+				externalInterface.init();
+			}
+
+			public function clearAlgorithm(keepCode:Boolean = true):void {
+				var code:String = codeArea.textArea.text;
+				currentAlgorithm = new Algorithm();
+				if(keepCode) {
+					currentAlgorithm.body = code;		
+				} else {
+					codeArea.textArea.clearUndoHistory();	
+				}	
+				codeArea.textArea.dispatchEvent(new Event('change'));
+				inputFile.textArea.dispatchEvent(new Event('change'));	
+				newCount += 1;
+				currentAlgorithm.name = 'Νέος αλγόριθμος ' + newCount.toString();
+			}
+			
+			private function embedBarClick(e:ItemClickEvent):void {
+				var c:Canvas = embedStack.getChildAt(e.index) as Canvas;
+				if(c.id == 'runB'){
+					run('RUN');
+				} else if(c.id == 'stepNextB') {
+					run('STEP_NEXT');
+				} else if(c.id == 'stepInB') {
+					run('STEP_IN');
+				} else if(c.id == 'stepOutB') {
+					run('STEP_OUT');
+				} else if(c.id == 'stopB') {
+					stop();
+				} else if(c.id == 'delayB') { 
+					toggleButton(getButton('delayB'));
+					setDelay();
+				} else if(c.id == 'breakB') {
+					codeArea.toggleCurrentLineBreakPoint();
+					codeArea.textArea.setFocus();
+				}
+			}
+
+			private function toggleButton(b:Button):void {
+				b.toggle = !b.toggle;
+				b.selected = !b.selected;
+			}
+			
+			
+			public function stopInput(e:Event):void {
+				e.preventDefault();
+				codeArea.textArea.removeEventListener(TextEvent.TEXT_INPUT, stopInput);	
+			}
+			
+			public function run(mode:String = 'RUN'):void {
+				if(env.ended) {
+					if(!env.start(codeArea.code)) {
+						return;
+					} else if(mode == 'STEP_IN' || mode == 'STEP_OUT' || mode == 'STEP_NEXT') {
+						return;
+					}
+				}
+				if(!env.halted) {
+					if(mode == 'RUN') {
+						env.run();
+					} else if(mode == 'STEP_IN') {
+						env.stepIn();
+					} else if(mode == 'STEP_OUT') {
+						env.stepOut();
+					} else if (mode == 'STEP_NEXT') {
+						env.stepNext();
+					}
+				}	
+			}
+			public function setDelay():void {	
+				if(env.delay == 0) {
+					env.delay = settings.STEP_DELAY;
+				} else {
+					env.delay = 0;
+					if(!env.ended) {
+						if(!env.breakAtCurrentLine() && !env.halted) {
+							setTimeout(env.run, env.delay);
+						}
+					}
+				}	
+			}
+			public function stop():void {
+				env.stop();
+			}
+			
+			public function linkClick(event:TextEvent):void {
+				var url:URLRequest = new URLRequest(event.text);
+				navigateToURL(url, '_blank');
+			}
+			public function linkInit():void {
+				linkLabel.htmlText = "<i><a href='event:http://www.pseudoglossa.gr'><u><font color='blue'>http://www.pseudoglossa.gr</font></u></a>";				
+			}
+			
+			private function newBrowserWindow(url:String):void {
+				var urlRequest:URLRequest = new URLRequest(url);
+				navigateToURL(urlRequest, "_blank");
+			}
+		]]> 
+	</mx:Script>
+	<mx:VBox width="100%" height="100%" paddingTop="10" paddingBottom="10">
+		<mx:VDividedBox width="100%" height="100%">
+			<mx:HBox width="100%" height="70%">
+				<mx:TabNavigator creationPolicy="all" id="mainBar" selectedIndex="0"  paddingTop="0" paddingBottom="0" paddingLeft="0" paddingRight="0" borderStyle="none" width="100%" height="100%" backgroundAlpha="0">
+					<custom:CodeArea styleName="CodeArea" height="70%" width="100%" id="codeArea" minHeight="30" label="Κώδικας" />
+					<custom:InputFile styleName="CodeArea" height="70%" width="100%" id="inputFile" minHeight="30" label="Είσοδος" />
+				</mx:TabNavigator>
+			</mx:HBox>
+			<mx:HBox width="100%" paddingLeft="{paddingLeft}" height="40%" paddingRight="15">									
+				<custom:PSystem id="system" width="100%" height="100%" app="{this}"/>	
+			</mx:HBox>			
+		</mx:VDividedBox>
+		<mx:HBox paddingLeft="{paddingLeft}" doubleClickEnabled="true" id="toolBox" horizontalAlign="center">	
+			
+			<mx:ButtonBar id="embedBar" direction="horizontal" dataProvider="{embedStack}"
+						  fontSize="14" itemClick="embedBarClick(event)"/>		
+			<mx:ViewStack id="embedStack" width="100%" height="{embedBar.height}">
+				<mx:Canvas id="runB" toolTip="Εκτέλεση - F5"	icon="@Embed('../assets/media-playback-start.png')" />
+				<mx:Canvas id="stepNextB" toolTip="Βηματική Εκτέλεση χωρίς Είσοδο στα Υποπρογράμματα - F7" icon="@Embed('../assets/go-next.png')" />
+				<mx:Canvas id="stepInB" toolTip="Βηματική Εκτέλεση με Είσοδο στα Υποπρογράμματα- F6" icon="@Embed('../assets/go-jump.png')" />
+				<mx:Canvas id="stepOutB" toolTip="Έξοδος από το Υποπρόγραμμα- F8" icon="@Embed('../assets/go-up.png')" />
+				<mx:Canvas id="delayB" toolTip="Εκτέλεση με Καθυστέρηση" icon="@Embed('../assets/appointment-new.png')" />			
+				<mx:Canvas id="breakB" toolTip="Εναλλαγή Σημείου Διακοπής - F9" icon="@Embed('../assets/media-record.png')"  />
+				<mx:Canvas id="stopB" toolTip="Διακοπή Εκτέλεσης" icon="@Embed('../assets/media-playback-stop.png')"/>
+			</mx:ViewStack>		
+			<mx:Label paddingTop="5" fontSize="11" link="linkClick(event)" height="30" initialize="linkInit()" selectable="true" id="linkLabel" />
+			
+		</mx:HBox>
+	</mx:VBox>
+</mx:Application>
