@@ -1,0 +1,62 @@
+<?php 
+	$this->headScript()->appendFile('js/swfobject.js', 'text/javascript');
+	$script = <<<EOD
+var flashvars = {};
+flashvars.sessionId = "$this->sessionId";
+var params = {};
+params.loop = "false";
+params.quality = "high";
+params.bgcolor = "#869ca7";
+params.allowscriptaccess = "sameDomain";
+var attributes = {};
+attributes.id = "pseudoglossa";
+swfobject.embedSWF("swf/Pseudoglossa.swf", "flashAlternative", "100%", "100%", "9.0.15", false, flashvars, params, attributes);
+EOD;
+	$this->headScript()->appendScript($script); 
+	$style = <<<EOD
+  html, body{ height:100%; }
+  body { margin:0; padding:0; overflow:hidden; }
+EOD;
+$this->headStyle()->appendStyle($style);
+?>
+<div id="flashAlternative">
+	<a href="http://www.adobe.com/go/getflashplayer">
+	<img src="http://www.adobe.com/images/shared/download_buttons/get_flash_player.gif" alt="Get Adobe Flash player" />
+	</a>
+</div>
+<?php if(APPLICATION_ENV == 'staging'):?>
+<!-- Start of StatCounter Code 
+<script type="text/javascript">
+sc_project=3766188;
+sc_invisible=1;
+sc_partition=40;
+sc_security="04421ccc";
+</script>
+
+<script type="text/javascript"
+src="http://www.statcounter.com/counter/counter.js"></script><noscript><div
+class="statcounter"><a title="web analytics"
+href="http://www.statcounter.com/" target="_blank"><img
+class="statcounter"
+src="http://c41.statcounter.com/3766188/0/04421ccc/1/"
+alt="web analytics" ></a></div></noscript>
+End of StatCounter Code -->
+<!-- Piwik -->
+<script type="text/javascript">
+var pkBaseURL = (("https:" == document.location.protocol) ?
+"https://www.pseudoglossa.gr/piwik/" :
+"http://www.pseudoglossa.gr/piwik/");
+document.write(unescape("%3Cscript src='" + pkBaseURL + "piwik.js' type='text/javascript'%3E%3C/script%3E"));
+</script><script type="text/javascript">
+try {
+var piwikTracker = Piwik.getTracker(pkBaseURL + "piwik.php", 1);
+piwikTracker.trackPageView();
+piwikTracker.enableLinkTracking();
+} catch( err ) {}
+</script><noscript><p><img
+src="http://www.pseudoglossa.gr/piwik/piwik.php?idsite=1"
+style="border:0" alt=""/></p></noscript>
+<!-- End Piwik Tag -->
+
+
+<?php endif; ?>

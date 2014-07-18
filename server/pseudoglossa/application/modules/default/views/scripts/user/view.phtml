@@ -1,0 +1,6 @@
+<a href="<?php echo $this->url(array(
+	'controller' => 'user',
+	'action' => 'edit',
+	'id' => $this->user->id), 
+    'default', 
+    true)?>"><?php echo $this->user->username . ' - ' .$this->user->email ?></a>

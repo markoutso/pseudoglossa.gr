@@ -1,0 +1,77 @@
+﻿<html>
+<head>
+	<!-- Οπωσδήποτε utf-8 -->
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	
+	<!-- Φορτώνει ένα javascript από το pseudoglosssa.gr -->
+	<script type="text/javascript" src="http://www.pseudoglossa.gr/js/pseudoglossa.js"></script>
+</head>
+<body> 
+
+    <!-- το παρακάτω script πρέπει να φορτώνεται στην σελίδα που ενσωματώνεται ο διερμηνευτής -->
+	<script type="text/javascript">			
+		//Φορτώνει τον διερμηνευτή σε κάθε textarea της σελίδας που έχει class="pseudocode" βλ. παρακάτω για παράδειγμα.
+		function loadInterpreter() {
+			var elements = ps.getElementsByClassName('pseudocode');
+			var parent;
+			var res;
+			var code;
+			var input;
+			elements.each(function(el) {
+				var algorithm = ps.parseElement(el);
+				ps.embedSwf({url:'http://www.pseudoglossa.gr/embed.php', id : el.id, width:'550', height:'350', flashvars : {fontSize:14, code:algorithm.code, input:algorithm.input}, parent:parent});
+			});
+		}
+		
+		//Αλλάζει τον αλγόριθμο και το αρχείο εισόδου που έχει ο διερμηνευτής παίρνοντας στοιχεία από ένα dom element (όπως παρακάτω το <pre id="algorithm1">.
+		// Εάν έχετε πολλούς αλγορίθμους σε μία σελίδα μπορείτε να έχετε πολλά pre elements το καθένα με διαφορετικό id και style="visibility:hidden" (ώστε να μην φαίνονται)
+		//και χρησιμοποιώντας την παρακάτω συνάρτηση να φορτώνετε το περιεχόμενό τους στον διερμηνευτή.
+		function loadAlgorithm(el) {
+			var algorithm = ps.parseElement(document.getElementById(el));
+			ps.loadAlgorithm(algorithm.code, algorithm.input);
+		}		
+		
+		ps.onLoad(loadInterpreter);
+
+	</script>
+	<div>
+		<!--<input type="button" name="button1" id="button1" onClick="loadInterpreter();" value="loadInterpeter" />-->
+		<input type="button" id="button2" onClick="loadAlgorithm('algorithm1');" value="loadAlgorithm" />
+	</div>
+	<div id="interpreter">
+		<textarea name="area" id="p1"  rows="24" cols="50" class="pseudocode">
+Αλγόριθμος διχοτόμηση
+Δεδομένα //α, δ, όριο//
+βρέθηκε ← Ψευδής
+Όσο όχι βρέθηκε επανάλαβε
+	μ ← (α + δ)/ 2
+	ψ ← Ε(μ) - 2*μ - 1
+	Αν Α_Τ(ψ) <= όριο τότε
+		βρέθηκε ← Αληθής
+	αλλιώς
+		Αν ψ < 0 τότε
+			α ← μ
+		αλλιώς
+			δ ←  μ
+		Τέλος_αν
+	Τέλος_αν
+Τέλος_επανάληψης
+Αποτελέσματα //μ, ψ//
+Τέλος διχοτόμηση
+#Input#
+1
+2
+3
+4
+</textarea> 
+</div>
+
+<pre id="algorithm1" style="visibility:hidden" >
+Αλγόριθμος δοκιμή_φόρτωσης
+Διάβασε α
+Εμφάνισε α + 1
+Τέλος δοκιμή_φόρτωσης
+#Input#
+6</pre>
+</body>
+</html>

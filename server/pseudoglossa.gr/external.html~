@@ -1,0 +1,71 @@
+<html>
+<head>
+	<!-- Οπωσδήποτε utf-8 -->
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	
+	<!-- Φορτώνει ένα javascript από το pseudoglosssa.gr -->
+	<script type="text/javascript" src="http://www.pseudoglossa.gr/js/pseudoglossa.js"></script>
+</head>
+<body> 
+
+<script type="text/javascript">
+debugger;
+//Φορτώνεται ο διερμηνευτής στην θέση ενός textarea με id="area".
+ps.onLoad(function(){
+	var area = document.getElementById('area');
+	var algorithm = ps.parseElement(area);
+	ps.embedSwf({url:'embed.php', id : 'area', width:'550', height:'350', flashvars : {fontSize:14, code:algorithm.code, input:algorithm.input}});
+
+});
+
+//Ορίζει μία συνάρτηση που καλείται όταν ο αλγόριθμος έχει εκτελεστεί με επιτυχία.
+//Στο παράδειγμα καλείται η getResults, αλλά μπορεί να κληθεί οποιαδήποτε
+function addCallback() {
+	ps.addCompletedCallback('getResults');
+}
+function run() {
+	ps.run();
+}
+function getError() {
+	alert(ps.getError().message);
+}
+function getResults() {
+	alert(ps.getResults());
+}
+function getCode() {
+    alert(ps.getCode());
+}
+</script>
+<div>
+<input type="button" name="button" id="button2" onClick="run();" value="run" />
+<input type="button" name="button" id="button3" onClick="getError();" value="getError" />
+<input type="button" name="button" id="button4" onClick="addCallback();" value="addCallback" />
+<input type="button" name="button" id="button4" onClick="getResults();" value="results" />
+<input type="button" name="button" id="button5" onClick="getCode();" value="code" />
+</div>
+<textarea  id="area"  rows="5" cols="50">Αλγόριθμος διχοτόμηση
+Δεδομένα //α, δ, όριο//
+βρέθηκε ← Ψευδής
+Όσο όχι βρέθηκε επανάλαβε
+	μ ← (α + δ)/ 2
+	ψ ← Ε(μ) - 2*μ - 1
+	Αν Α_Τ(ψ) <= όριο τότε
+		βρέθηκε ← Αληθής
+	αλλιώς
+		Αν ψ < 0 τότε
+			α ← μ
+		αλλιώς
+			δ ←  μ
+		Τέλος_αν
+	Τέλος_αν
+Τέλος_επανάληψης
+Αποτελέσματα //μ, ψ//
+Τέλος διχοτόμηση
+#Input#
+1
+2
+0.01</textarea>
+
+</body>
+
+</html>

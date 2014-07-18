@@ -1,0 +1,14 @@
+<?php if(Zend_Auth::getInstance()->hasIdentity()) : ?>
+	<a href="<?php echo $this->url(array('controller'=>'login', 'action'=>'logout'), 
+    'default', 
+    true);
+	?>"><?php echo __('logout')?></a>
+<?php else : ?> 
+<?php 
+	if($this->error) {
+		echo $this->error;
+	}
+	echo $this->form;	
+?>
+<?php endif;?>
+<?php var_dump(Zend_Session::getId())?>

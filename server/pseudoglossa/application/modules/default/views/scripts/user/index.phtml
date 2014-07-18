@@ -1,0 +1,27 @@
+<p><a href="<?php echo $this->url(
+    array(
+        'controller' => 'user',
+        'action'     => 'new'
+    ), 
+    'default', 
+    true);
+    ?>">New User</a></p>
+    <?php if(count($this->paginator)) : ?>
+    	<ul>
+			<?php foreach ($this->paginator as $item): ?>
+  				<li><a href="<?php echo $this->url(array(
+  					'controller'=>'user',
+  					'action'=>'view',
+  					'id'=>$item['id']
+  				))?>"><?php echo $item['username']; ?></a> - <?php echo $item['email']; ?> - 
+  				<a href="<?php
+  					echo $this->url(array(
+  					'controller' => 'user',
+        			'action'     => 'delete',
+        			'id' => $item['id']
+  					), 'default', true);
+  				?>">delete</a></li>
+			<?php endforeach; ?>
+		</ul>
+    	<?php echo $this->paginator; ?>
+    <?php endif;?>
