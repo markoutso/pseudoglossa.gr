@@ -457,9 +457,12 @@
 		searchDialog = new SearchDialog();
 		instance = this;
 		var url:String = Application.application.loaderInfo.url;
-		url = EnvSettings.AMF_URL;
 		isLocalhost = url.indexOf('localhost') != -1;
-		
+		if(isLocalhost) {
+			url = EnvSettings.AMF_LOCAL_URL;
+		} else {
+			url = EnvSettings.AMF_PRODUCTION_URL;
+		}
 		service = new PService(url); 
 		
 		PForm.service = service;	
