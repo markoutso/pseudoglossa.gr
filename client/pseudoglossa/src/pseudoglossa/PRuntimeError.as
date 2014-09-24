@@ -24,7 +24,7 @@ package pseudoglossa
 		public static const ARITHMETIC_ERROR:String = 'Λάθος κατά την αποτίμηση της αριθμητικής έκφρασης';
 		public static const ARRAY_DIMENSION_ERROR:String = 'Λάθος διάσταση πίνακα';
 		public static const ARRAY_INDEX_ERROR:String = 'Ο δείκτης του πίνακα δεν είναι θετικός ακέραιος αριθμός';
-		public static const UNKNOWN_TYPE:String = 'Σφάλμα εξαγωγής τύπου';
+		public static const UNKNOWN_TYPE:String = 'Σφάλμα, άγνωστη μεταβλητή';
 		
 		public function PRuntimeError(message:String, line:uint=0)
 		{			

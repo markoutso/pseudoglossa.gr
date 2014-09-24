@@ -24,6 +24,9 @@ package pseudoglossa
 			if(arr && arr.dimension != dimension) {
 				throw new PTypeError(PTypeError.DIMESION_MISMATCH, arr.line);
 			}
+			if(arr && elType == 'VARIABLE') {
+				elType = arr.elType;
+			}
 			return this;
 		}
 		

@@ -1,7 +1,5 @@
 package pseudoglossa
 {
-	import flight.utils.Type;
-
 	public class LValue extends Expression 
 	{		
 		public var _name:String;
@@ -25,6 +23,7 @@ package pseudoglossa
 			var a:ArrayStruct = new ArrayStruct(_name);
 			a.setLocation(from, length, line);
 			if(arr) {
+				a.elType = arr.elType;
 				a.dimension = arr.dimension;
 			}
 			return a;
@@ -42,7 +41,7 @@ package pseudoglossa
 		
 		override public function get value():*
 		{
-			throw new PRuntimeError(PRuntimeError.UNKNOWN_TYPE + ' για το όνομα ' + name, line);
+			throw new PRuntimeError(PRuntimeError.UNKNOWN_TYPE + ': ' + name, line);
 		}
 		
 		public function set value(v:*):void

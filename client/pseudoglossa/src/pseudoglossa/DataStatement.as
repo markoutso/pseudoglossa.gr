@@ -52,6 +52,9 @@ package pseudoglossa
 					}
 				}
 			}
+			if(l.type == 'LVALUE') {
+				Checker.setLValueAgainstString(l, value, Environment.instance.frame.algorithm.name);
+			}
 			if(type != 'VARIABLE') { 
 				Environment.instance.frame.checker.setType(l, type);
 			} 

@@ -62,18 +62,24 @@ package pseudoglossa
 		public static function setLValue(obj:Object, against:Object, algName:String):*
 		{
 			var ret:*;
-			if(obj is LValue && obj.type == 'LVALUE' && against.type != 'LVALUE') {
-				if(against.type == 'ARRAY') {
-					ret = LValue(obj).toArray(against as ArrayStruct);
-				} else {
-					ret = LValue(obj).toSingleValued(against.type);
-				}
-				for each(var f:Frame in Frame.frames[algName]) {
-					f.ntBuilder.updateLValue(ret);
-					f.checker.setType(ret, ret.type);
-				}
-				return ret;
+			if(against.type != 'LVALUE') {
+				if(obj is LValue && (obj.type == 'LVALUE') ||
+					(obj.type == 'ARRAY' && obj.elType == 'VARIABLE')) {
+					if(against.type == 'ARRAY') {
+						ret = LValue(obj).toArray(against as ArrayStruct);
+					} else  {
+						ret = LValue(obj).toSingleValued(against.type);
+					}
+					for each(var f:Frame in Frame.frames[algName]) {
+						f.ntBuilder.updateLValue(ret);
+						if(ret.type != 'VARIABLE') {
+							f.checker.setType(ret, ret.type);	
+						}					
+					}
+					return ret;
+				}	
 			}
+			
 			return obj;
 		}
 		
