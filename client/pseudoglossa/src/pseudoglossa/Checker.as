@@ -63,8 +63,8 @@ package pseudoglossa
 		{
 			var ret:*;
 			if(against.type != 'LVALUE') {
-				if(obj is LValue && (obj.type == 'LVALUE') ||
-					(obj.type == 'ARRAY' && obj.elType == 'VARIABLE')) {
+				if(obj is LValue && ((obj.type == 'LVALUE') ||
+					(obj.type == 'ARRAY' && obj.elType == 'VARIABLE'))) {
 					if(against.type == 'ARRAY') {
 						ret = LValue(obj).toArray(against as ArrayStruct);
 					} else  {
