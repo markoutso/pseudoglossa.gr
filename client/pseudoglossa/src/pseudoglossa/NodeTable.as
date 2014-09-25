@@ -59,7 +59,11 @@ package pseudoglossa
 		{
 			var entry:Object = get(l.name);
 			if(entry) {
-				return entry as LValue;
+				if(entry is AlgorithmStatement) {
+					throw new PTypeError(PTypeError.VARIABLE_IS_ALORITHM_NAME, l.line);
+				} else {
+					return entry as LValue;
+				}
 			}
 			set(l.name, l);
 			return l;

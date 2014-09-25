@@ -446,8 +446,8 @@ package pseudoglossa.components.text
 						}).join('\n');
 						newSelection = [pos, selEnd + replacements];
 						tf.replaceText(selBegin, selEnd, newText);
-						tf.setSelection(newSelection[0], newSelection[1]);
 						tf.dispatchEvent(new ReplaceSelectionEvent([selBegin, selEnd], oldText, newSelection, newText));
+						tf.setSelection(newSelection[0], newSelection[1]);
 					} else {
 						insertAtCaretPos('\t');
 					}				
@@ -463,13 +463,13 @@ package pseudoglossa.components.text
 						}).join('\n');
 						newSelection = [pos, selEnd - replacements];
 						tf.replaceText(selBegin, selEnd, newText);
-						tf.setSelection(newSelection[0], newSelection[1]);
 						tf.dispatchEvent(new ReplaceSelectionEvent([selBegin, selEnd], oldText, newSelection, newText));
+						tf.setSelection(newSelection[0], newSelection[1]);
 					} else if(text.charAt(tf.caretIndex - 1) == '\t') {
 						pos = tf.caretIndex - 1;
 						tf.replaceText(pos, pos + 1, '');
-						tf.setSelection(pos, pos);
 						tf.dispatchEvent(new ReplaceSelectionEvent([pos, pos + 1], '\t', [pos, pos], ''));
+						tf.setSelection(pos, pos);
 					}
 					
 				}		

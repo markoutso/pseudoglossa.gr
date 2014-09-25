@@ -104,7 +104,9 @@ package pseudoglossa
 			}
 			algorithmStatement.endLine = currentToken.line;
 			var name:String = parseAlgorithmName();
-			if(Spec.normaliseGreek(algorithmName.toLowerCase()) != Spec.normaliseGreek(name.toLowerCase())) throw new PSyntaxError(PSyntaxError.EXPECTED_ALGORITHM_IDENTIFIER, currentToken);
+			if(algorithmName != name) {
+				throw new PSyntaxError(PSyntaxError.EXPECTED_ALGORITHM_IDENTIFIER, currentToken);
+			}
 			popOpenStatements();
 			return algorithmStatement;
 		}
@@ -183,8 +185,8 @@ package pseudoglossa
 				statement = parseSwap();
 			} else if(tok.value == '@WHILE') {
 				statement = parseWhile();
-			} else if(tok.value == '@DO') {
-				statement = parseDo();
+			} else if(tok.value == '@DO' || tok.value == '@REPEAT') {
+				statement = parseDo(tok.value);
 			} else if(tok.value == '@FOR') {
 				statement = parseFor();
 			} else if(tok.value == '@SELECT') {
@@ -345,9 +347,14 @@ package pseudoglossa
 			return whileStatement;
 		}
 		
-		public function parseDo():RepeatStatement 
+		public function parseDo(val:String):RepeatStatement 
 		{
-			expect('@DO');
+			if(val == '@DO') {
+				expect('@DO');	
+			} else {
+				expect('@REPEAT');
+			}
+			
 			var repeatStatement:RepeatStatement = new RepeatStatement();
 			expectNewLine();			
 			pushOpenStatements(repeatStatement);

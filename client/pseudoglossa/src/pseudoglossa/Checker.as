@@ -112,7 +112,7 @@ package pseudoglossa
 				checkAssignment(st as AssignmentStatement);	
 			} else if (st is IfStatement) {
 				checkIf(st as IfStatement);
-			} else if ( st is SelectStatement) {
+			} else if (st is SelectStatement) {
 				checkSelect(st as SelectStatement);
 			} else if (st is WhileStatement) {
 				checkWhile(st as WhileStatement);
