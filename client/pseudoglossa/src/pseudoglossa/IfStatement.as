@@ -54,6 +54,8 @@ package pseudoglossa
 					}
 				}
 				exitIndex = Environment.instance.length;
+			} else {
+				nextIndex = Environment.instance.length;
 			}
 		}
 
