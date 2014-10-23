@@ -28,7 +28,7 @@
             width="100%"
             height="400" editable="false" styleName="code" color="#000000" paddingTop="10" fontSize="12">
 	<mx:htmlText>
-<![CDATA[<font size="13">pseudoglossa.gr - on-line διερμηνευτής για την Ψευδογλώσσα της ΑΕΠΠ</font>
+<![CDATA[<font size="13">pseudoglossa.gr - on-line διερμηνευτής για την Ψευδογλώσσα του Γενικού Λυκείου</font>
 
 Ανάπτυξη : Στάθης Στέργου <br />Επικοινωνία : sstergou@gmail.com
 Εικονίδια : <font color="#0000FF"><u><a href="http://tango.freedesktop.org/" target="_blank">Tango Project</a></u></font>
