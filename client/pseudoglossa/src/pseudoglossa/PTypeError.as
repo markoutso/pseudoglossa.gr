@@ -20,6 +20,7 @@ package pseudoglossa
 		public static const EXPRESSION_NOT_VARIABLE:String = 'Η έκφραση δεν είναι μεταβλητή.';
 		public static const NULL_ALGORITHM_EXPRESSION:String = 'Η κλήση σε αλγόριθμο δεν επιστρέφει κάποια τιμή';
 		public static const EXPRESSION_NOT_ARRAY:String = 'Η έκφραση δεν είναι πίνακας';
+		public static const VARIABLE_NOT_ARRAY:String = 'Η μεταβλητή δεν είναι πίνακας';
 		public static const VARIABLE_IS_ALORITHM_NAME:String = 'Η μεταβλητή έχει το ίδιο όνομα με τον αλγόριθμο';
 
 		

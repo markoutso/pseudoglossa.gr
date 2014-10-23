@@ -219,6 +219,9 @@ package pseudoglossa
 				}
 				bond[l.name] = l;
 			}
+			if(l.type == 'VARIABLE' && type == 'ARRAY') {
+				throw new PTypeError(PTypeError.VARIABLE_NOT_ARRAY + ' : ' + l.name, l.line);
+			}
 			l.type = type;
 			setBondedType(l);	
 		}
