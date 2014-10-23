@@ -142,6 +142,7 @@
 			callLater(function():void {
 				paddingLeft = codeArea.textArea.x;
 				setMainBarTabPadding();
+				codeArea.reset();
 			});
 			this['FONT_SIZE'] = fontSize;
 		},  
