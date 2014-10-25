@@ -73,17 +73,17 @@ package pseudoglossa
 		
 		override public function get type():String
 		{
-			return this.arrayStruct.elType;
+			return arrayStruct.elType;
 		}
 		
 		override public function set type(type:String):void
 		{
-			this.arrayStruct.elType = type;
+			arrayStruct.elType = type;
 		}
 		
 		override public function get name():String
 		{
-			return this.arrayStruct.name;
+			return arrayStruct.name;
 		}
 	}
 }

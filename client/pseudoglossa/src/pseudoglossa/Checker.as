@@ -355,7 +355,10 @@ package pseudoglossa
 				if(hasType(expression)) {
 					setType(lvalue, expression.type); 
 				} else if(expression is LValue) {
-					bind(lvalue, expression);
+					var b1:Expression, b2:Expression;
+					b1 = lvalue is ArrayElementExpression ? ArrayElementExpression(lvalue).arrayStruct : lvalue;
+					b2 = expression is ArrayElementExpression ? ArrayElementExpression(expression).arrayStruct : expression;
+					bind(b1, b2);
 				}
 			} else {
 				if(!hasType(expression)) {
