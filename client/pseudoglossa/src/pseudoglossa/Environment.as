@@ -6,6 +6,7 @@ package pseudoglossa
 	import mx.controls.Alert;
 	import mx.core.Application;
 	import mx.events.CloseEvent;
+	import mx.managers.PopUpManager;
 	
 	public class Environment	
 	{
@@ -42,6 +43,7 @@ package pseudoglossa
 		public var _lastError:Object = {};
 		public var callStack:Stack;
 		public var minutes:uint = 0;
+		public var alert:Alert;
 		
 		public static var instance:Environment;
 		
@@ -133,7 +135,7 @@ package pseudoglossa
 		{
 			pc -= 1;
 		}
-		public function addCommand(f:Function, line:uint):void 
+		public function addCommand(f:Function, line:uint=0):void 
 		{
 			commands.push(f);
 			lines.push(line);
@@ -197,8 +199,9 @@ package pseudoglossa
 			}
 			executedCommandsCount++;
 			brokeAt = 0;
-			if(!halted && !ended && executeMode != MODE_RUN) {
-				executionArea.executeLine(lines[pc]);
+			l = lines[pc];
+			if(!halted && !ended && executeMode != MODE_RUN && l != 0) {
+				executionArea.executeLine(l);
 			}
 			if(!commandsWarned && executedCommandsCount > COMMANDS_WARNING_LIMIT) {
 				commandsWarned = true;
@@ -209,12 +212,13 @@ package pseudoglossa
 		public function notice(message:String):void 
 		{
 			halt();
-			Alert.show(message, 'Μήνυμα διερμηνευτή', Alert.OK | Alert.NO, null, 
+			alert = Alert.show(message, 'Μήνυμα διερμηνευτή', Alert.OK | Alert.NO, null, 
 				function(e:CloseEvent):void {
-					if(e.detail != Alert.OK)
+					if(e.detail != Alert.OK) {
 						resume();
-					else 
+					} else { 
 						halted = false;
+					}
 				}
 			);
 		}
@@ -372,17 +376,21 @@ package pseudoglossa
 				executionArea.stopExecution();
 				if(intervalID) {
 					clearStepInterval();
-				}				
+				}		
+				if (alert) {
+					PopUpManager.removePopUp(alert);
+				}
 				//keyboard problem??
 				app.setFocus();
 				systemOut.stop();
 				systemIn.stop();
 				ended = true;
 				halted = false;
-				commandsWarned = false;
 				callStack.reset();
-				for each(var f:Function in stopListeners)
-					f();
+				for each(var f:Function in stopListeners) {
+					f();	
+				}					
+
 			}
 		}
 		public function handleRuntimeError(e:Error, line:uint):void
@@ -419,7 +427,6 @@ package pseudoglossa
 		{
 			halted = false;
 			executionArea.executeLine(lines[pc]);
-			
 			if(executeMode == MODE_INTERVAL) {
 				setStepInterval();
 			}
