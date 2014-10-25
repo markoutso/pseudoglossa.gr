@@ -459,10 +459,11 @@
 		instance = this;
 		var url:String = Application.application.loaderInfo.url;
 		isLocalhost = url.indexOf('localhost') != -1;
+		var proto:String = url.indexOf('https') == 0 ? 'https' : 'http';
 		if(isLocalhost) {
-			url = EnvSettings.AMF_LOCAL_URL;
+			url = proto + '://' + EnvSettings.AMF_LOCAL_URL;
 		} else {
-			url = EnvSettings.AMF_PRODUCTION_URL;
+			url = proto + '://' + EnvSettings.AMF_PRODUCTION_URL;
 		}
 		service = new PService(url); 
 		

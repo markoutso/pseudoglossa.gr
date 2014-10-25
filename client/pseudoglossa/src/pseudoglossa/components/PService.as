@@ -4,6 +4,7 @@ package pseudoglossa.components
 	import mx.managers.CursorManager;
 	import mx.messaging.ChannelSet;
 	import mx.messaging.channels.AMFChannel;
+	import mx.messaging.channels.SecureAMFChannel;
 	import mx.rpc.events.FaultEvent;
 	import mx.rpc.events.ResultEvent;
 	import mx.rpc.remoting.Operation;
@@ -24,7 +25,11 @@ package pseudoglossa.components
 		{	
 			super('zend');
 			actionStack = new Object();
-			amfChannel = new AMFChannel('zend-endpoint', url);
+			if (url.indexOf('https') == 0) {
+				amfChannel = new SecureAMFChannel('zend-endpoint', url);
+			} else {
+				amfChannel = new AMFChannel('zend-endpoint', url);
+			}
 			channelSet = new ChannelSet();
 			channelSet.addChannel(amfChannel);
 			requestTimeout = 30;
@@ -114,7 +119,7 @@ package pseudoglossa.components
 		{
 			if(e.fault.faultString == 'sessionError') {
 				call('pLogout');
-				ErrorDialog.showError('Λήξη συνόδου. Παρακαλώ εισέλεθετε ξανά στο σύστημα. Επιλέξτε "Να με θυμάσαι" από το παράθυρο εισόδου εάν επιθυμείτε να μην λήγουν οι σύνοδοι σας.');	
+				ErrorDialog.showError('Λήξη συνεδρίας. Παρακαλώ εισέλεθετε ξανά στο σύστημα. Επιλέξτε "Να με θυμάσαι" από το παράθυρο εισόδου εάν επιθυμείτε να μην λήγουν οι συνεδρίες σας.');	
 			}
 			else {
 				ErrorDialog.showError(e.toString());	
