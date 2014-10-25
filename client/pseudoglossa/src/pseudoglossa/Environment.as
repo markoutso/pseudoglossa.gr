@@ -433,6 +433,7 @@ package pseudoglossa
 		}
 		public function input(callback:Function, l:LValue):void 
 		{
+			executionArea.executeLine(lines[pc]);
 			systemIn.read(callback);
 		}
 		public function results(s:String):void 
@@ -442,6 +443,7 @@ package pseudoglossa
 		}
 		public function inputData(callback:Function, lv:LValue):void 
 		{
+			executionArea.executeLine(lines[pc]);
 			systemIn.inputData(callback, lv);
 		}
 		public function output(s:String):void 
