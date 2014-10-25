@@ -41,6 +41,7 @@ package pseudoglossa
 		public var executeListeners:Dictionary;
 		public var _lastError:Object = {};
 		public var callStack:Stack;
+		public var minutes:uint = 0;
 		
 		public static var instance:Environment;
 		
@@ -196,21 +197,20 @@ package pseudoglossa
 			}
 			executedCommandsCount++;
 			brokeAt = 0;
-			if(!halted && !ended) {
+			if(!halted && !ended && executeMode != MODE_RUN) {
 				executionArea.executeLine(lines[pc]);
 			}
 			if(!commandsWarned && executedCommandsCount > COMMANDS_WARNING_LIMIT) {
-				commandsWarning();
+				commandsWarned = true;
+				notice('Εκτελέστηκαν μέχρι στιγμής ' + COMMANDS_WARNING_LIMIT.toString() + 
+					' εντολές. Θέλετε να διακόψετε προσωρινά την εκτέλεση του αλγορίθμου;');
 			}
 		}
-		public function commandsWarning():void 
+		public function notice(message:String):void 
 		{
 			halt();
-			Alert.show('Εκτελέστηκαν μέχρι στιγμής ' + COMMANDS_WARNING_LIMIT.toString() + 
-				' εντολές. Θέλετε να διακόψετε προσωρινά την εκτέλεση του αλγορίθμου;', 
-				'Μήνυμα διερμηνευτή', Alert.OK | Alert.NO, null, 
+			Alert.show(message, 'Μήνυμα διερμηνευτή', Alert.OK | Alert.NO, null, 
 				function(e:CloseEvent):void {
-					commandsWarned = true;
 					if(e.detail != Alert.OK)
 						resume();
 					else 
@@ -251,13 +251,21 @@ package pseudoglossa
 		public function run():void 
 		{
 			if(delay == 0) {
-				executeMode = MODE_RUN;
-				while(pc < commands.length && !halted && !ended) {
-					if(checkBreakpoint()) {
-						return;
+				try {
+					executeMode = MODE_RUN;
+					while(pc < commands.length && !halted && !ended) {
+						if(checkBreakpoint()) {
+							return;
+						}
+						executeCommand();
+				 	}
+				} catch (e:Error) {					
+					if(e.errorID == 1502) {
+						minutes += 1;
+						var m:String = minutes == 1 ? 'λεπτό' : 'λεπτά';
+						notice("Ο αλγόριθμος εκτελείται για " + minutes + " " + m + " (όριο του flash player). Θέλετε να διακόψετε προσωρινά την εκτέλεσή του;");
 					}
-					executeCommand();
-			 	}
+				}
 			}
 			else {
 				setStepInterval();
@@ -273,7 +281,7 @@ package pseudoglossa
 		 	return false;
 		}
 		public function start(code:String):Boolean 
-		{
+		{			
 			commands = [];
 			lines = [];
 			pc = 0;
@@ -282,6 +290,7 @@ package pseudoglossa
 			outputLog = '';
 			commandsWarned = false;
 			executedCommandsCount = 0;
+			minutes = 0;
 			callStack.reset();
 			systemOut.clear();
 			_lastError = {};

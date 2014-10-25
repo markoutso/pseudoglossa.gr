@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute"
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" scriptRecursionLimit="65535" scriptTimeLimit="65535"
 				xmlns:custom="pseudoglossa.components.*" width="100%" height="100%" applicationComplete="init()" >
 	<mx:Style source="../assets/main.css" />
 	
