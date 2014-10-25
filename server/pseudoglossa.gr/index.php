@@ -31,10 +31,8 @@ swfobject.embedSWF("swf/Pseudoglossa.swf?t=<?php echo time(); ?>", "flashAlterna
 </head>
 	<body>
 		<div id="flashAlternative">
-	<a href="http://www.adobe.com/go/getflashplayer">
-	<img src="http://www.adobe.com/images/shared/download_buttons/get_flash_player.gif" alt="Get Adobe Flash player" />
-	</a>
-</div>
+			Παρακαλώ εγκαταστήστε τον flash player
+		</div>
 
 	</body>
 </html>
