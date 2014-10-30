@@ -8,5 +8,7 @@ package pseudoglossa
 		function hasBreakpoint(lineIndex:uint):Boolean;	
 		function setEnvironment(env:Environment):void;	
 		function showError(e:Error, line:uint):void;
+		function breakPoints():Array;
+		function setBreakPoint(line:uint, unset:Boolean):void;
 	}
 }

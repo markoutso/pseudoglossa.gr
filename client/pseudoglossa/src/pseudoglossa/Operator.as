@@ -33,10 +33,8 @@ package pseudoglossa
 			this.modes = modes;
 			isBinary ? binaryOperators[key] = this : unaryOperators[key] = this;		
 			this.modesCount = 0;
-			for(var i:String in modes) {
-				if(modes.hasOwnProperty(i)) {
-					this.modesCount += 1;
-				}
+			for(var i:String in modes) {			
+				this.modesCount += 1;
 			}
 			_compute = compute;
 		}

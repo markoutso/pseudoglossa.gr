@@ -17,7 +17,7 @@ package pseudoglossa
 		{
 			var acc:Array = [];
 			for(var key:String in h) {
-				if(h.hasOwnProperty(key) && h[key] is AlgorithmStatement) {
+				if(h[key] is AlgorithmStatement) {
 					acc.push(h[key]);
 				}
 			}
