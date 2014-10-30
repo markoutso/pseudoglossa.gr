@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" scriptRecursionLimit="65535" scriptTimeLimit="65535"
 				xmlns:custom="pseudoglossa.components.*" width="100%" height="100%" applicationComplete="init()" >
-	<mx:Style source="../assets/main.css" />
+	<mx:Style source="../assets/main.css"/>
 	
 	<mx:Script>
 		<![CDATA[
-			import pseudoglossa.Helper;			
 			import flash.display.DisplayObject;
 			import flash.display.StageDisplayState;
 			import flash.events.KeyboardEvent;
@@ -14,18 +13,18 @@
 			import flash.system.Capabilities;
 			import flash.system.System;
 			import flash.ui.Keyboard;
-			import pseudoglossa.components.text.ChangeAreaEvent;
 			
 			import mx.collections.ArrayCollection;
-			import mx.containers.TitleWindow;
 			import mx.controls.Alert;
 			import mx.controls.Button;
 			import mx.controls.buttonBarClasses.ButtonBarButton;
 			import mx.controls.tabBarClasses.Tab;
 			import mx.events.ItemClickEvent;
 			import mx.managers.PopUpManager;
+			import mx.styles.CSSStyleDeclaration;
 			
 			import pseudoglossa.Environment;
+			import pseudoglossa.Helper;
 			import pseudoglossa.Operator;
 			import pseudoglossa.PRuntimeError;
 			import pseudoglossa.PSyntaxError;
@@ -33,6 +32,7 @@
 			import pseudoglossa.components.ErrorDialog;
 			import pseudoglossa.components.InputFile;
 			import pseudoglossa.components.SearchDialog;
+			import pseudoglossa.components.text.ChangeAreaEvent;
 			import pseudoglossa.forms.SettingsForm;
 			import pseudoglossa.models.Algorithm;
 			
@@ -54,9 +54,11 @@
 			private var buttons:Array;
 			public var saved:Boolean;
 			public var newCount:uint;
-						
+			
 			[Bindable]
 			public var isLinux:Boolean;
+			
+			public var initCallback:String;
 			
 			[Bindable]
 			public var isLocalhost:Boolean;
@@ -140,65 +142,174 @@
 					SORT_TYPE : 'DESC',
 					USE_INPUT_FILE : false,
 					LOG_INPUT:false
-				},
-				//when a new setting is introduced, stored json does not correspond with settings object
-				mergeDefault : function(obj:Object):void
-				{
-					
 				}
 			};
 			
 			public var externalInterface:Object = {
+				
+				subscriptions: {},
 				callbacks : {
-					loadAlgorithm : function(code:String, input:String):void
+					
+				/** ACTIONS */
+					setAlgorithm : function(code:String, input:String):void
 					{
 						mapAlgorithm({body:code, inputFile:input});
 					},
+					
 					useInputFile : function(useInputFile:Boolean):void
 					{
 						settings.setInputFile(useInputFile);
 					},
+					
+					setDelay: function(delay:int=0):void
+					{
+						var b:Button = getButton('delayB');
+						if (delay == 0) {
+							if (env.delay != 0) {								
+								b.selected = false;
+								b.toggle = false;
+								env.delay = 0;	
+								if (!env.ended) {
+									if(!env.halted && !env.breakAtCurrentLine()) {
+										setTimeout(env.run, env.delay);
+									}
+								}
+							}
+						} else {
+							b.selected = true;
+							b.toggle = true;
+							env.delay = delay;
+						}
+					},		
+					
+					setBreakPoint: function(line:uint, unset:Boolean=false):void 
+					{						
+						env.executionArea.setBreakPoint(line, unset);						
+					},
+					
+					insertText: function(text:String):void
+					{
+						codeArea.insertAtCaretPos(text);
+						codeArea.textArea.setSelection(codeArea.textArea.tf.caretIndex, codeArea.textArea.tf.caretIndex);
+						codeArea.textArea.setFocus();
+					},
+
 					run : function():Boolean 
 					{
-						if(!env.start(codeArea.code)) {
-							return false;
+						if(env.ended) {
+							if(!env.start(codeArea.code)) {
+								return false;
+							}
 						}
 						env.run();
 						return true;	
 					},
-					getCode : function():String {
+
+					stepIn: function():void
+					{
+						env.stepIn();
+					},
+					
+					stepOut: function():void
+					{
+						env.stepOut();
+					},
+					
+					stepNext: function():void
+					{
+						env.stepNext();
+					},
+					
+					showCode: function(show:Boolean=true):void
+					{
+						if (show) {
+							showButton('stepNextB');
+							showButton('stepInB');
+							showButton('stepOutB');
+							showButton('delayB');
+							showButton('breakB');
+							codeContainer.visible = true;
+							codeContainer.includeInLayout = true;
+						} else {
+							hideButton('stepNextB');
+							hideButton('stepInB');
+							hideButton('stepOutB');
+							hideButton('delayB');
+							hideButton('breakB');		
+							codeContainer.visible = false;
+							codeContainer.includeInLayout = false; 
+						}
+					},
+					
+					showButtons: function(show:Boolean=true):void
+					{
+						if (show) {
+							buttonsBox.visible = true;
+							buttonsBox.includeInLayout = true;
+						} else {
+							buttonsBox.visible = false;
+							buttonsBox.includeInLayout = false;
+						}
+					},
+										
+				/** GETTERS */					
+					getDelay: function():uint
+					{
+						return env.delay;
+					},					
+
+					getBreakPoints: function():Array
+					{
+						return env.executionArea.breakPoints();
+					},			
+					
+					getCode : function():String 
+					{
 						return codeArea.code;
 					},
+					
+					getInputFile: function():String 
+					{
+						return inputFile.code;
+					},
+					
 					getError : function():Object 
 					{
 						return env.lastError;
 					},
-					addCompletedCallback : function(func:String):void
-					{
-						externalInterface.completedCallbacks[func] = function():void {
-							ExternalInterface.call(func);				
-						};
-						env.addStopListener(externalInterface.completedCallbacks[func]);
-					},
-					removeCompletedCallback : function(func:String):void
-					{
-						env.removeStopListener(externalInterface.completedCallbacks[func]);
-						delete externalInterface.completedCallbacks[func];
-					},
-					getResults : function():String
+					
+					getOutput : function():String
 					{
 						return env.outputLog;	
-					}
+					},
+					
+					getExecutionInfo: function():String
+					{
+						return env.executionInfo();
+					},
+										
+				/** SUBSCRIPTIONS */					
+					subscribe: function(event:String, fn:String, unSubscribe:Boolean=false):void
+					{
+						if (unSubscribe) {
+							env.unsubscribe(event, externalInterface.subscriptions[event][fn]);
+							delete externalInterface.subscriptions[event][fn];							
+						} else {
+							externalInterface.subscriptions[event] = externalInterface.subscriptions[event] || {};
+							externalInterface.subscriptions[event][fn] = function():void{
+								ExternalInterface.call(fn);
+							};						
+							env.subscribe(event, externalInterface.subscriptions[event][fn]);							
+						}
+					}				
 				},
-				completedCallbacks : {},
 				init : function():void 
 				{
 					Security.allowDomain('*');
 					for(var name:String in this.callbacks) {
 						ExternalInterface.addCallback(name, this.callbacks[name]);	
 					}
-					//ExternalInterface.call('ps.init');
-					ExternalInterface.call('ps.init', PseudoglossaEmbedded.instance.parameters.id);
+					ExternalInterface.call(initCallback, parameters.id);
 				}
 
 			};
@@ -251,6 +362,7 @@
 				tab.x = paddingLeft + width;
 			}
 			private function init():void {	
+				initButtons();
 				Alert.okLabel = 'Ναι';
 				Alert.noLabel = 'Όχι'
 				Alert.cancelLabel = 'Άκυρο';	
@@ -268,8 +380,15 @@
 					isLinux = true;	
 				} else {
 					isLinux = false;
+				}				
+				if (this.parameters.backgroundColor) {
+					var color:Number = Number("0x" + this.parameters.backgroundColor.slice(1));
+					Application.application.setStyle('backgroundGradientAlphas', [1.0, 1.0]);
+					Application.application.setStyle('backgroundGradientColors', [color, color]);
 				}
-				initButtons();
+				
+				this.initCallback = this.parameters.initCallback || null;
+
 				addEventListener(KeyboardEvent.KEY_UP, function(e:KeyboardEvent):void {
 					if(e.keyCode == Keyboard.F5) {
 						run('RUN');
@@ -286,7 +405,6 @@
 				setMainBarTabPadding();
 				clearAlgorithm(false);
 				Helper.setSettings(settings);
-				externalInterface.init();				
 				codeArea.code = this.parameters.code;
 				settings.setFontSize(this.parameters.fontSize);
 				inputFile.code = this.parameters.input;
@@ -373,7 +491,7 @@
 				}	
 			}
 			public function stop():void {
-				env.stop();
+				env.stop(true);
 			}
 			
 			public function linkClick(event:TextEvent):void {
@@ -390,11 +508,11 @@
 			}
 		]]> 
 	</mx:Script>
-	<mx:VBox width="100%" height="100%" paddingTop="10" paddingBottom="10">
+	<mx:VBox width="100%" height="100%" paddingTop="0" paddingBottom="0">
 		<mx:VDividedBox width="100%" height="100%">
-			<mx:HBox width="100%" height="70%">
+			<mx:HBox width="100%" height="70%" id="codeContainer">
 				<mx:TabNavigator creationPolicy="all" id="mainBar" selectedIndex="0"  paddingTop="0" paddingBottom="0" paddingLeft="0" paddingRight="0" borderStyle="none" width="100%" height="100%" backgroundAlpha="0">
-					<custom:CodeArea styleName="CodeArea" height="70%" width="100%" id="codeArea" minHeight="30" label="Κώδικας" />
+					<custom:CodeArea styleName="CodeArea" height="70%" width="100%" id="codeArea" minHeight="30" label="Κώδικας"/>										
 					<custom:InputFile styleName="CodeArea" height="70%" width="100%" id="inputFile" minHeight="30" label="Είσοδος" />
 				</mx:TabNavigator>
 			</mx:HBox>
@@ -402,21 +520,22 @@
 				<custom:PSystem id="system" width="100%" height="100%" app="{this}"/>	
 			</mx:HBox>			
 		</mx:VDividedBox>
-		<mx:HBox paddingLeft="{paddingLeft}" doubleClickEnabled="true" id="toolBox" horizontalAlign="center">	
-			
-			<mx:ButtonBar id="embedBar" direction="horizontal" dataProvider="{embedStack}"
-						  fontSize="14" itemClick="embedBarClick(event)"/>		
-			<mx:ViewStack id="embedStack" width="100%" height="{embedBar.height}">
-				<mx:Canvas id="runB" toolTip="Εκτέλεση - F5"	icon="@Embed('../assets/media-playback-start.png')" />
-				<mx:Canvas id="stepNextB" toolTip="Βηματική Εκτέλεση χωρίς Είσοδο στα Υποπρογράμματα - F7" icon="@Embed('../assets/go-next.png')" />
-				<mx:Canvas id="stepInB" toolTip="Βηματική Εκτέλεση με Είσοδο στα Υποπρογράμματα- F6" icon="@Embed('../assets/go-jump.png')" />
-				<mx:Canvas id="stepOutB" toolTip="Έξοδος από το Υποπρόγραμμα- F8" icon="@Embed('../assets/go-up.png')" />
-				<mx:Canvas id="delayB" toolTip="Εκτέλεση με Καθυστέρηση" icon="@Embed('../assets/appointment-new.png')" />			
-				<mx:Canvas id="breakB" toolTip="Εναλλαγή Σημείου Διακοπής - F9" icon="@Embed('../assets/media-record.png')"  />
-				<mx:Canvas id="stopB" toolTip="Διακοπή Εκτέλεσης" icon="@Embed('../assets/media-playback-stop.png')"/>
-			</mx:ViewStack>		
-			<mx:Label paddingTop="5" fontSize="11" link="linkClick(event)" height="30" initialize="linkInit()" selectable="true" id="linkLabel" />
-			
+		<mx:HBox id="buttonsBox" width="100%" paddingTop="0" paddingBottom="0">
+			<mx:HBox paddingLeft="{paddingLeft}" horizontalAlign="center" doubleClickEnabled="true" id="toolBox" >			
+				<mx:ButtonBar id="embedBar" direction="horizontal" dataProvider="{embedStack}" fontSize="14" itemClick="embedBarClick(event)"/>		
+				<mx:ViewStack id="embedStack" width="100%" height="{embedBar.height}">
+					<mx:Canvas id="runB" toolTip="Εκτέλεση - F5" icon="@Embed('../assets/media-playback-start.png')" />
+					<mx:Canvas id="stepNextB" toolTip="Βηματική Εκτέλεση χωρίς Είσοδο στα Υποπρογράμματα - F7" icon="@Embed('../assets/go-next.png')" />
+					<mx:Canvas id="stepInB" toolTip="Βηματική Εκτέλεση με Είσοδο στα Υποπρογράμματα- F6" icon="@Embed('../assets/go-jump.png')"/>
+					<mx:Canvas id="stepOutB" toolTip="Έξοδος από το Υποπρόγραμμα- F8" icon="@Embed('../assets/go-up.png')"/>
+					<mx:Canvas id="delayB" toolTip="Εκτέλεση με Καθυστέρηση" icon="@Embed('../assets/appointment-new.png')" />
+					<mx:Canvas id="breakB" toolTip="Εναλλαγή Σημείου Διακοπής - F9" icon="@Embed('../assets/media-record.png')"/>
+					<mx:Canvas id="stopB" toolTip="Διακοπή Εκτέλεσης" icon="@Embed('../assets/media-playback-stop.png')"/>
+				</mx:ViewStack>		
+			</mx:HBox>					
+		</mx:HBox>
+		<mx:HBox horizontalAlign="right" width="100%">
+			<mx:Label fontSize="11" link="linkClick(event)" initialize="linkInit()" selectable="true" id="linkLabel" paddingRight="20"/>	
 		</mx:HBox>
 	</mx:VBox>
 </mx:Application>

@@ -17,10 +17,10 @@
 global{focusThickness:0}
 
 Application
-{		
-	 backgroundGradientAlphas: 1.0, 1.0;
-	 backgroundGradientColors: #F6F3F3, #B7B6B6; 
-	 padding:0;
+{
+	backgroundGradientAlphas: 1.0, 1.0;
+	backgroundGradientColors: #F6F3F3, #B7B6B6; 
+	padding:0;	 
 	 
 }
 Panel.data

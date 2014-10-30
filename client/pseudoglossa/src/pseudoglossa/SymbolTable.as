@@ -76,5 +76,21 @@ package pseudoglossa
 				updateCollection(arrkey, o[k]);
 			}
 		}
+		
+		public function flatten():Object
+		{
+			var l:uint = collection.length;
+			var ret:Object = {};
+			var name:String;
+			for (var i:uint = 0; i < l; i += 1) {
+				name = collection[i].name;
+				if (name.charAt(0) != '$') {
+					ret[name] = collection[i].value;
+				}
+			}
+			return ret;
+		}
+		
+		
 	}		
 }

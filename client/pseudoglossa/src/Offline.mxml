@@ -211,58 +211,6 @@
 				}
 			};
 			
-			public var externalInterface:Object = {
-				callbacks : {
-					loadAlgorithm : function(code:String, input:String):void
-					{
-						mapAlgorithm({body:code, inputFile:input});
-					},
-					useInputFile : function(useInputFile:Boolean):void
-					{
-						settings.setInputFile(useInputFile);
-					},
-					run : function():Boolean 
-					{
-						if(!env.start(codeArea.code)) {
-							return false;
-						}
-						env.run();
-						return true;	
-					},
-					getCode : function():String {
-						return codeArea.code;
-					},
-					getError : function():Object 
-					{
-						return env.lastError;
-					},
-					addCompletedCallback : function(func:String):void
-					{
-						externalInterface.completedCallbacks[func] = function():void {
-							ExternalInterface.call(func);				
-						};
-						env.addStopListener(externalInterface.completedCallbacks[func]);
-					},
-					removeCompletedCallback : function(func:String):void
-					{
-						env.removeStopListener(externalInterface.completedCallbacks[func]);
-						delete externalInterface.completedCallbacks[func];
-					},
-					getResults : function():String
-					{
-						return env.outputLog;	
-					}
-				},
-				completedCallbacks : {},
-				init : function():void 
-				{
-					for(var name:String in this.callbacks) {
-						ExternalInterface.addCallback(name, this.callbacks[name]);	
-					}
-					ExternalInterface.call('ps.init');
-				}
-			};
-			
 			public function get loginForm():LoginForm {
 				if(!_loginForm) {
 					_loginForm = new LoginForm();
@@ -434,11 +382,11 @@
 				env = new Environment(this, system, system, codeArea);
 				watch.env = env;
 				
-				env.addStartListener(function():void {
+				env.subscribe('start', function():void {
 					sideBar.selectedIndex = 1;
 					watch.dataGrid.dataProvider = env.symbolsCollection;
 				});
-				env.addStopListener(function():void {		
+				env.subscribe('completed', function():void {		
 					sideBar.selectedIndex = 0;
 					
 					if(watch.dataGrid && watch.dataGrid.dataProvider) {
@@ -455,11 +403,9 @@
 					//(restBar.getChildAt(0) as ButtonBarButton).enabled = false;
 					//resetScreen(); 
 				});
-				
-				env.addStackListener(function():void {
+				env.subscribe('stack',function():void {
 					watch.dataGrid.dataProvider = env.symbolsCollection;
 				});
-				
 				env.ended = true;	
 				delayToggle = false;
 				if(Capabilities.os.match('Linux')) {
@@ -497,15 +443,6 @@
 				currentUserTags = [];
 				globalTagPos = {};
 				userTagPos = {};
-//				service.addResultListener('pLogin', onLogin);
-//				service.addResultListener('getSessionUser', onGetSessionUser);
-//				service.addResultListener('pLogout', clearSession);	
-//				service.addResultListener('getGlobalTags', onGetGlobalTags);
-//				service.addResultListener('getUserTags', onGetUserTags); 		
-//				service.addResultListener('createUserTag', onUpdateUserTag);
-//				service.addResultListener('updateUserTag', onUpdateUserTag);
-//				service.addResultListener('deleteUserTag', onUpdateUserTag);
-//				service.call('getSessionUser');	
 			}
 			private function onUpdateUserTag(e:ResultEvent):void {
 				if(e.result.success == true) {

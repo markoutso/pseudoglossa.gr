@@ -2,6 +2,8 @@ package pseudoglossa
 {	
 	import flash.utils.*;
 	
+	import json.JSON;
+	
 	import mx.collections.ArrayCollection;
 	import mx.controls.Alert;
 	import mx.core.Application;
@@ -29,6 +31,7 @@ package pseudoglossa
 		public var inputStatement:Statement;
 		public var executeMode:uint;
 		public var executedCommandsCount:uint;
+		
 		public static const COMMANDS_WARNING_LIMIT:uint = 100000;
 		public var commandsWarned:Boolean;
 		public static const MODE_RUN:uint = 1;
@@ -36,10 +39,10 @@ package pseudoglossa
 		public static const MODE_INTERVAL:uint = 3;
 		public static const RESUME_READ:uint = 4;
 		public static const RESUME_DATA:uint = 5;
-		public var startListeners:Dictionary;
-		public var stopListeners:Dictionary;
-		public var stackListeners:Dictionary;
-		public var executeListeners:Dictionary;
+		public static const EVENTS:Array = ['start', 'completed', 'stack', 'step', 'break', 'stop', 'run'];
+		
+		
+		public var listeners:Object;		
 		public var _lastError:Object = {};
 		public var callStack:Stack;
 		public var minutes:uint = 0;
@@ -58,16 +61,47 @@ package pseudoglossa
 			this.systemIn.setEnvironment(this);
 			this.systemOut = systemOut;
 			this.delay = 0;
-			this.startListeners = new Dictionary();
-			this.executeListeners = new Dictionary();
-			this.stopListeners = new Dictionary();
-			this.stackListeners = new Dictionary();
+			this.listeners = {};
+			for each (var k:String in EVENTS) {
+				this.listeners[k] = new Dictionary();
+			}
 			this.callStack = new Stack();
 			if(!instance) {
 				instance = this;
 			} else {
 				throw new Error('only one environment instance is allowed');
 			}
+		}
+		
+		public function executionInfo():String
+		{
+			var f:Frame, t:Array = [];
+			for (var i:int = callStack.arr.length - 1; i >= 0; i -= 1) {
+				f = callStack.arr[i] as Frame;
+				t.push({
+					name: f.algorithm.name, 
+					returnLine: lines[f.returnIndex], 
+					symbolTable: f.symbolTable.flatten()					
+				});
+			}
+			return JSON.encode({currentLine: lines[pc], callStack: t, output: outputLog});
+		}
+		
+		public function trigger(event:String):void
+		{
+			for each(var f:Function in listeners[event]) {
+				f();
+			}
+		}
+		
+		public function subscribe(event:String, fn:Function):void
+		{
+			listeners[event][fn] = fn;
+		}
+		
+		public function unsubscribe(event:String, fn:Function):void
+		{
+			delete listeners[event][fn];			
 		}
 		
 		public function setSystemIn(si:IInput):void
@@ -78,38 +112,6 @@ package pseudoglossa
 		public function setSystemOut(so:IOutput):void
 		{
 			systemOut = so;
-		}
-		public function addStartListener(f:Function):void 
-		{
-			startListeners[f] = f;
-		}
-		public function removeStartListener(f:Function):void 
-		{
-			delete startListeners[f];
-		}
-		public function addExecuteListener(f:Function):void 
-		{
-			executeListeners[f] = f;
-		}
-		public function removeExecuteListener(f:Function):void 
-		{
-			delete executeListeners[f];
-		}
-		public function addStopListener(f:Function):void 
-		{
-			stopListeners[f] = f;
-		}
-		public function removeStopListener(f:Function):void 
-		{
-			delete stopListeners[f];
-		}
-		public function addStackListener(f:Function):void 
-		{
-			stackListeners[f] = f;
-		}
-		public function removePopListener(f:Function):void 
-		{
-			delete stackListeners[f];
 		}
 		public function get symbolsCollection():ArrayCollection 
 		{
@@ -202,6 +204,7 @@ package pseudoglossa
 			l = lines[pc];
 			if(!halted && !ended && executeMode != MODE_RUN && l != 0) {
 				executionArea.executeLine(l);
+				trigger('step');
 			}
 			if(!commandsWarned && executedCommandsCount > COMMANDS_WARNING_LIMIT) {
 				commandsWarned = true;
@@ -280,6 +283,7 @@ package pseudoglossa
 			if(breakAtCurrentLine() && !brokeAtCurrentLine()) {
 		 		executionArea.executeLine(lines[pc]);
 		 		brokeAt = lines[pc];
+				trigger('break');
 		 		return true;
 		 	}
 		 	return false;
@@ -312,9 +316,8 @@ package pseudoglossa
 			}
 			set.createSteps();
 			executionArea.startExecution();
-			executionArea.executeLine(lines[0])
-			for each(var f:Function in startListeners)
-				f();
+			executionArea.executeLine(lines[0]);
+			trigger('start');
 			return true;
 		}		
 		
@@ -328,15 +331,13 @@ package pseudoglossa
 			if(callStack.length < 2) { 
 				return null;
 			}
-			return callStack.getItemAt(callStack.length - 2) as Frame
+			return callStack.getItemAt(callStack.length - 2) as Frame;
 		}
 		
 		public function call(frame:Frame):void
 		{
 			callStack.push(frame);
-			for each(var f:Function in stackListeners) {
-				f();
-			}
+			trigger('stack');
 			setPC(frame.algorithm.startIndex + 1);
 		}
 
@@ -348,9 +349,7 @@ package pseudoglossa
 			if(pc == 0) {
 				stop();
 			} else {
-				for each(var f:Function in stackListeners) {
-					f();
-				}
+				trigger('stack');
 			}
 		}
 		
@@ -370,7 +369,7 @@ package pseudoglossa
 			}
 			return set;
 		}
-		public function stop():void 
+		public function stop(fromUser:Boolean=false):void 
 		{
 			if(!ended) {
 				executionArea.stopExecution();
@@ -380,17 +379,17 @@ package pseudoglossa
 				if (alert) {
 					PopUpManager.removePopUp(alert);
 				}
-				//keyboard problem??
 				app.setFocus();
 				systemOut.stop();
 				systemIn.stop();
 				ended = true;
 				halted = false;
 				callStack.reset();
-				for each(var f:Function in stopListeners) {
-					f();	
-				}					
-
+				if (fromUser) {
+					trigger('stop');
+				} else {
+					trigger('completed');
+				}
 			}
 		}
 		public function handleRuntimeError(e:Error, line:uint):void

@@ -35,10 +35,8 @@ private static var greeklishPatterns:Array;
 
 private var fontSize:uint;
 private var _numVisibleLines:uint;
-private var highlightsHash:Array;
-private var highlights:Array;
-private var breakpoints:Array;
-private var breakpointsHash:Array;
+private var highlightsHash:Object;
+private var breakpointsHash:Object;
 private var metrics:TextLineMetrics;
 private var highlight:Boolean;
 private var ep:RegExp;
@@ -110,10 +108,8 @@ public function resize(e:Event = null):void
 public function init(event:FlexEvent = null):void 
 {	
 	this.creationCompleted = true;
-	this.highlightsHash = [];
-	this.highlights = [];
-	this.breakpointsHash = [];
-	this.breakpoints = [];		
+	this.highlightsHash = {};
+	this.breakpointsHash = {};
 	this.metrics = this.textArea.getLineMetrics(0);
 	this.textArea.tf.alwaysShowSelection = true;	
 	this.oldCaretLine = 1;
@@ -391,6 +387,25 @@ public function hasBreakpoint(lineIndex:uint):Boolean
 	return this.breakpointsHash.hasOwnProperty(lineIndex.toString());
 }
 
+public function breakPoints():Array
+{
+	var ret:Array = [];
+	for (var i:String in this.breakpointsHash) {
+		ret.push(parseInt(i));
+	}
+	return ret;
+}
+public function setBreakPoint(lineIndex:uint, unset:Boolean):void
+{
+	if (unset) {
+		if (this.breakpointsHash.hasOwnProperty(lineIndex)) {
+			this.toggleBreakpoint(lineIndex);
+		}	
+	} else {
+		this.toggleBreakpoint(lineIndex);
+	}	
+}
+	
 public function toggleBreakpoint(lineIndex:uint):void 
 {
 	if(this.breakpointsHash.hasOwnProperty(lineIndex)) {
@@ -570,7 +585,7 @@ public function clearHighlights():void
 	for(var k:String in this.highlightsHash) 
 		if((this.highlightsHash[k] as DisplayObject).parent == this.textArea)
 			this.textArea.removeChild(this.highlightsHash[k]);
-	this.highlightsHash = [];
+	this.highlightsHash = {};
 }	
 public function updateBreakPoints():void
 {
@@ -580,21 +595,21 @@ public function updateHighlights():void
 {
 	this.updateShapes(this.highlightsHash, this.textArea, this.createLineHighlight);
 }
-public function updateShapes(arr:Array, parent:DisplayObjectContainer, createShape:Function):void 
+public function updateShapes(obj:Object, parent:DisplayObjectContainer, createShape:Function):void 
 {
 	var t:Array = [];
-	for(var i:String in arr) {
+	for(var i:String in obj) {
 		if(lineIsVisible(parseInt(i))) {
-			if((arr[i] as DisplayObject).parent == parent){			
-				parent.removeChild(arr[i]);
+			if((obj[i] as DisplayObject).parent == parent){			
+				parent.removeChild(obj[i]);
 			}
 			var s:Shape;
 			s = createShape(parseInt(i));
 			parent.addChild(s);
-			arr[i] = s;
+			obj[i] = s;
 		}
-		else if((arr[i] as DisplayObject).parent == parent) {
-			parent.removeChild(arr[i]);			
+		else if((obj[i] as DisplayObject).parent == parent) {
+			parent.removeChild(obj[i]);			
 		}
 	}					
 }
@@ -647,6 +662,6 @@ private function createRect(x:uint, y:uint, width:uint, height:uint, color:Numbe
 </mx:Label>
 <custom:ExtTextArea id="textArea" xmlns:custom="pseudoglossa.components.text.*" 
 	verticalScrollPolicy="on" creationComplete="init()" horizontalScrollPolicy="auto"
-	 doubleClickEnabled="true" styleName="code" width="100%" wordWrap="false">
+	doubleClickEnabled="true" styleName="code" width="100%" wordWrap="false">
 </custom:ExtTextArea>
 </mx:Canvas>
