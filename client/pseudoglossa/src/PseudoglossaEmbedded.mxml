@@ -301,7 +301,18 @@
 							};						
 							env.subscribe(event, externalInterface.subscriptions[event][fn]);							
 						}
-					}				
+					},
+					
+				/** INTROSPECTION */
+					getAPI: function():Array
+					{
+						var ret:Array = [];
+						for (var k:String in externalInterface.callbacks) {
+							ret.push(k);
+						}
+						return ret;
+						
+					}
 				},
 				init : function():void 
 				{
