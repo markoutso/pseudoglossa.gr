@@ -94,6 +94,16 @@ package pseudoglossa
 				return Math.random();
 			});
 			
+			new StandardFunction('τυχαιοσ_ακεραιοσ', ['NUMBER', 'NUMBER'], 'NUMBER', function(left:Number, right:Number):Number {
+				if (left > right) {
+					var t: Number;
+					t = right;
+					right = left;
+					left = t;
+				}
+				return Math.floor(left + Math.random() * (right - left + 1));
+			});
+			
 			new StandardFunction('τυποσ', ['STRING'], 'STRING', function(name:String):String {
 				var o:* = Environment.instance.frame.nodeTable.get(name) || Environment.instance.set.getAlgorithm(name) || getStandardFunction(name);
 				if(!o) {

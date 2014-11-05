@@ -1,4 +1,3 @@
-
 package pseudoglossa
 {
 	public class Parser extends ExpressionParser
