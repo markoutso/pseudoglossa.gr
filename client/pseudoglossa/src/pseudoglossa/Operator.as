@@ -159,7 +159,7 @@ package pseudoglossa
 						EXP_CAST:'NUMBER'
 					}
 				}, function(a:Number, b:Number):Number {
-					return a % b;
+					return Math.abs(a % b);
 				}
 			);
 				
