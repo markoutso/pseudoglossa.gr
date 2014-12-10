@@ -148,11 +148,7 @@ package pseudoglossa
 						EXP_CAST:'NUMBER'
 					}
 				}, function(a:Number, b:Number):Number {
-<<<<<<< HEAD
-					return Math.floor(a / b);					
-=======
 					return b < 0 ? Math.ceil(a / b) : Math.floor(a / b);
->>>>>>> origin/master
 				}
 			);
 			new Operator('mod','EMOD','ARITHMETIC',true,31,
