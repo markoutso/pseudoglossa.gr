@@ -244,8 +244,10 @@ package pseudoglossa
 		}
 		public function setStepInterval():void 
 		{
-			executeMode = MODE_INTERVAL;
-			intervalID = setInterval(doStep, delay);
+			if (intervalID == 0) {
+				executeMode = MODE_INTERVAL;
+				intervalID = setInterval(doStep, delay);
+			}
 		}
 		public function brokeAtCurrentLine():Boolean 
 		{

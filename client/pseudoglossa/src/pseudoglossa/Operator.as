@@ -148,7 +148,7 @@ package pseudoglossa
 						EXP_CAST:'NUMBER'
 					}
 				}, function(a:Number, b:Number):Number {
-					return Math.floor(a / b);
+					return Math.floor(a / b);					
 				}
 			);
 			new Operator('mod','EMOD','ARITHMETIC',true,31,
