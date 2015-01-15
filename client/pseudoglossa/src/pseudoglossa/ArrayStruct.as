@@ -67,7 +67,7 @@ package pseudoglossa
 			if (type == 'BOOLEAN') {
 				value = Boolean(v);
 			} else if (type != 'STRING') {
-				value = Number(v);
+				value = Number(v) || v;
 			} else {
 				value = v;
 			}
